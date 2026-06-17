@@ -21,8 +21,8 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:          "k8shell",
-	Short:        "k8shell — CLI for k8shell resources",
+	Use:           "k8shell",
+	Short:         "Manage k8shell resources",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {

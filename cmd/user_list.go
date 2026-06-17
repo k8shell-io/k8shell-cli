@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/k8shell-io/common/pkg/models"
@@ -15,12 +14,10 @@ var userColumns = []output.Column{
 	{Header: "FULLNAME", MaxWidth: 20},
 	{Header: "EMAIL", MaxWidth: 30},
 	{Header: "ORG", MaxWidth: 15},
-	{Header: "UID", MaxWidth: 10},
-	{Header: "GID", MaxWidth: 10},
-	{Header: "SOURCE", MaxWidth: 10},
 	{Header: "ROLES", MaxWidth: 20},
-	{Header: "LOCKED", MaxWidth: 6},
+	{Header: "BLUEPRINTS", MaxWidth: 30},
 	{Header: "SUDO", MaxWidth: 5},
+	{Header: "SOURCE", MaxWidth: 122},
 	{Header: "STATUS", MaxWidth: 8},
 }
 
@@ -49,12 +46,10 @@ var userListCmd = &cobra.Command{
 				u.Fullname,
 				u.Email,
 				u.Organization,
-				fmt.Sprintf("%d", u.UID),
-				fmt.Sprintf("%d", u.GID),
-				u.Source,
 				formatRoles(u.Roles),
-				boolVal(u.Locked),
+				strings.Join(u.Blueprints, ","),
 				boolVal(u.Sudo),
+				u.Source,
 				userStatus(u),
 			}
 		}
