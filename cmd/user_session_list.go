@@ -2,28 +2,30 @@ package cmd
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
+	"github.com/k8shell-io/common/pkg/models"
 	"github.com/k8shell-io/k8shell/internal/client"
-	"github.com/k8shell-io/k8shell/internal/output"
+	"github.com/k8shell-io/k8shell/internal/table"
 	"github.com/spf13/cobra"
 )
 
 var sessionUser string
 
-var sessionColumns = []output.Column{
-	{Header: "SESSION_ID", MaxWidth: 15},
-	{Header: "USERNAME", MaxWidth: 20},
-	{Header: "WORKSPACE", MaxWidth: 20},
-	{Header: "BLUEPRINT", MaxWidth: 20},
-	{Header: "CLIENT_IP", MaxWidth: 15},
-	{Header: "CHANNELS", MaxWidth: 25},
-	{Header: "START", MaxWidth: 16},
-	{Header: "END", MaxWidth: 16},
-	{Header: "BYTES_IN", MaxWidth: 10},
-	{Header: "BYTES_OUT", MaxWidth: 10},
+var sessionColumns = []table.Col[models.SSHSession]{
+	{Header: "SESSION_ID", MaxWidth: 15, Field: "sessionID"},
+	{Header: "USERNAME", MaxWidth: 20, Field: "username"},
+	{Header: "WORKSPACE", MaxWidth: 20, Field: "workspace"},
+	{Header: "BLUEPRINT", MaxWidth: 20, Field: "blueprint"},
+	{Header: "CLIENT_IP", MaxWidth: 15, Field: "clientIP"},
+	{Header: "CHANNELS", MaxWidth: 25, Field: "channels", Fmt: fmtJoin},
+	{Header: "START", MaxWidth: 16, Field: "startTime", Fmt: fmtTime},
+	{Header: "END", MaxWidth: 16, Field: "endTime", Fmt: fmtTime},
+	{Header: "BYTES_IN", MaxWidth: 10, Field: "bytesIn", Fmt: fmtBytes},
+	{Header: "BYTES_OUT", MaxWidth: 10, Field: "bytesOut", Fmt: fmtBytes},
 }
+
+var sessionSortFlag string
 
 var userSessionListCmd = &cobra.Command{
 	Use:   "list",
@@ -34,7 +36,7 @@ var userSessionListCmd = &cobra.Command{
 			return err
 		}
 
-		sessions, err := client.New(ctx, debug).ListSessions(sessionUser)
+		sessions, err := client.New(ctx, debug, insecure).ListSessions(sessionUser)
 		if err != nil {
 			return err
 		}
@@ -43,31 +45,19 @@ var userSessionListCmd = &cobra.Command{
 			return printer.JSON(sessions)
 		}
 
-		rows := make([][]string, len(sessions))
-		for i, s := range sessions {
-			rows[i] = []string{
-				s.SessionID,
-				s.Username,
-				s.Workspace,
-				s.Blueprint,
-				s.ClientIP,
-				strings.Join(s.Channels, ","),
-				formatTime(s.StartTime),
-				formatTime(s.EndTime),
-				formatBytes(s.BytesIn),
-				formatBytes(s.BytesOut),
-			}
-		}
-		printer.Table(sessionColumns, rows)
-		return nil
+		return table.Table(printer, sessionColumns, sessions, sessionSortFlag)
 	},
 }
 
 func init() {
-	userSessionListCmd.Flags().StringVarP(&sessionUser, "user", "u", "", "username (defaults to the authenticated user)")
+	userSessionListCmd.Flags().StringVarP(&sessionUser, "user", "u", "",
+		"username (defaults to the authenticated user)")
+	userSessionListCmd.Flags().StringVar(&sessionSortFlag, "sort", "",
+		"sort by fields, e.g. startTime,-bytesIn (prefix - for descending)")
 }
 
-func formatBytes(b int64) string {
+func fmtBytes(v any) string {
+	b, _ := v.(int64)
 	switch {
 	case b >= 1<<30:
 		return fmt.Sprintf("%.1f GB", float64(b)/(1<<30))
@@ -80,7 +70,8 @@ func formatBytes(b int64) string {
 	}
 }
 
-func formatTime(t *time.Time) string {
+func fmtTime(v any) string {
+	t, _ := v.(*time.Time)
 	if t == nil {
 		return "-"
 	}

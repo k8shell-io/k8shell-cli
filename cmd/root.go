@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/k8shell-io/k8shell/internal/config"
-	"github.com/k8shell-io/k8shell/internal/output"
+	"github.com/k8shell-io/k8shell/internal/table"
 	"github.com/spf13/cobra"
 )
 
@@ -16,8 +16,9 @@ var (
 	noANSI      bool
 	wrap        bool
 	debug       bool
+	insecure    bool
 	cfg         *config.Config
-	printer     *output.Printer
+	printer     *table.Printer
 )
 
 var rootCmd = &cobra.Command{
@@ -26,7 +27,7 @@ var rootCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		printer = output.New(jsonMode, noANSI, wrap)
+		printer = table.New(jsonMode, noANSI, wrap)
 
 		var err error
 		cfg, err = config.Load(cfgFile)
@@ -54,7 +55,9 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&noANSI, "no-ansi", false, "disable ANSI color output")
 	rootCmd.PersistentFlags().BoolVarP(&wrap, "wrap", "w", false, "allow lines to wrap beyond terminal width")
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "print request and response headers to stderr")
+	rootCmd.PersistentFlags().BoolVar(&insecure, "insecure", false, "skip TLS certificate verification")
 
 	rootCmd.AddCommand(userCmd)
 	rootCmd.AddCommand(contextCmd)
+	rootCmd.AddCommand(loginCmd)
 }

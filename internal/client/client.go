@@ -1,9 +1,11 @@
 package client
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 
@@ -18,12 +20,28 @@ type Client struct {
 	http   *http.Client
 }
 
-func New(ctx *config.Context, debug bool) *Client {
+func New(ctx *config.Context, debug, insecure bool) *Client {
 	return &Client{
 		server: ctx.Server,
 		token:  ctx.Token,
 		debug:  debug,
-		http:   &http.Client{},
+		http:   newHTTPClient(insecure),
+	}
+}
+
+// NewAnonymous creates a client for unauthenticated requests (e.g. login flow).
+func NewAnonymous(server string, debug, insecure bool) *Client {
+	return &Client{server: server, debug: debug, http: newHTTPClient(insecure)}
+}
+
+func newHTTPClient(insecure bool) *http.Client {
+	if !insecure {
+		return &http.Client{}
+	}
+	return &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		},
 	}
 }
 
@@ -97,7 +115,9 @@ func (c *Client) get(path string, out any) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.token)
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
 	req.Header.Set("Accept", "application/json")
 
 	if c.debug {
@@ -119,6 +139,61 @@ func (c *Client) get(path string, out any) error {
 	}
 
 	return json.NewDecoder(resp.Body).Decode(out)
+}
+
+func (c *Client) ListProviders() ([]string, error) {
+	var providers []string
+	if err := c.get("/api/v1/auth/providers", &providers); err != nil {
+		return nil, err
+	}
+	return providers, nil
+}
+
+// PollToken checks whether the PAT for the given state is ready.
+// Returns (nil, nil) when still pending (202), (token, nil) when ready (200).
+func (c *Client) PollToken(state string) (*models.UserToken, error) {
+	u, err := url.Parse(c.server + "/api/v1/auth/token")
+	if err != nil {
+		return nil, err
+	}
+	q := u.Query()
+	q.Set("state", state)
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	if c.debug {
+		c.debugRequest(req)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if c.debug {
+		c.debugResponse(resp)
+	}
+	if resp.StatusCode == http.StatusAccepted {
+		return nil, nil // still pending
+	}
+	if resp.StatusCode >= 400 {
+		return nil, &APIError{StatusCode: resp.StatusCode}
+	}
+	var token models.UserToken
+	if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
+		return nil, err
+	}
+	return &token, nil
+}
+
+func (c *Client) GetProfile() (*models.User, error) {
+	var u models.User
+	if err := c.get("/api/v1/me/profile", &u); err != nil {
+		return nil, err
+	}
+	return &u, nil
 }
 
 func (c *Client) ListUsers() ([]models.User, error) {

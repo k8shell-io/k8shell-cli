@@ -3,15 +3,12 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/k8shell-io/k8shell/internal/output"
+	"github.com/k8shell-io/k8shell/internal/config"
+	"github.com/k8shell-io/k8shell/internal/table"
 	"github.com/spf13/cobra"
 )
 
-var contextColumns = []output.Column{
-	{Header: ""},
-	{Header: "NAME", MaxWidth: 20},
-	{Header: "SERVER", MaxWidth: 50},
-}
+var contextSortFlag string
 
 var contextListCmd = &cobra.Command{
 	Use:   "list",
@@ -26,17 +23,26 @@ var contextListCmd = &cobra.Command{
 			return printer.JSON(cfg.Contexts)
 		}
 
-		rows := make([][]string, len(cfg.Contexts))
-		for i, ctx := range cfg.Contexts {
-			marker := " "
-			name := ctx.Name
-			if ctx.Name == cfg.CurrentContext {
-				marker = output.Active("*")
-				name = output.Active(ctx.Name)
-			}
-			rows[i] = []string{marker, name, ctx.Server}
+		cols := []table.Col[config.Context]{
+			{Header: "", MaxWidth: 0, Fn: func(ctx config.Context) string {
+				if ctx.Name == cfg.CurrentContext {
+					return table.Active("*")
+				}
+				return " "
+			}},
+			{Header: "NAME", MaxWidth: 20, Fn: func(ctx config.Context) string {
+				if ctx.Name == cfg.CurrentContext {
+					return table.Active(ctx.Name)
+				}
+				return ctx.Name
+			}},
+			{Header: "SERVER", MaxWidth: 50, Field: "server"},
 		}
-		printer.Table(contextColumns, rows)
-		return nil
+
+		return table.Table(printer, cols, cfg.Contexts, contextSortFlag)
 	},
+}
+
+func init() {
+	contextListCmd.Flags().StringVar(&contextSortFlag, "sort", "", "sort by fields, e.g. name,-server (prefix - for descending)")
 }
