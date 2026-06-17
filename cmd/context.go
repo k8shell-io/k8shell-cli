@@ -3,8 +3,9 @@ package cmd
 import "github.com/spf13/cobra"
 
 var contextCmd = &cobra.Command{
-	Use:   "context",
-	Short: "Manage contexts",
+	Use:     "context",
+	Aliases: []string{"ctx"},
+	Short:   "Manage contexts",
 }
 
 func init() {

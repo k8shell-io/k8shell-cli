@@ -22,8 +22,9 @@ var userColumns = []table.Col[models.User]{
 var userSortFlag string
 
 var userListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List users",
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List users",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, err := cfg.ActiveContext()
 		if err != nil {

@@ -28,8 +28,9 @@ var sessionColumns = []table.Col[models.SSHSession]{
 var sessionSortFlag string
 
 var userSessionListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List sessions (defaults to your own via /me)",
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List sessions (defaults to your own via /me)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, err := cfg.ActiveContext()
 		if err != nil {

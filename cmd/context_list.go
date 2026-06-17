@@ -11,8 +11,9 @@ import (
 var contextSortFlag string
 
 var contextListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all contexts",
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List all contexts",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(cfg.Contexts) == 0 {
 			fmt.Println("No contexts configured.")

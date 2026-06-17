@@ -7,8 +7,9 @@ import (
 )
 
 var contextDeleteCmd = &cobra.Command{
-	Use:   "delete <name>",
-	Short: "Delete a context",
+	Use:     "delete <name>",
+	Aliases: []string{"del"},
+	Short:   "Delete a context",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
