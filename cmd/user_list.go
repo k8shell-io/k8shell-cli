@@ -31,7 +31,7 @@ var userListCmd = &cobra.Command{
 			return err
 		}
 
-		users, err := client.New(ctx, debug, insecure).ListUsers()
+		users, err := client.New(ctx, debug, insecure || ctx.Insecure).ListUsers()
 		if err != nil {
 			return err
 		}

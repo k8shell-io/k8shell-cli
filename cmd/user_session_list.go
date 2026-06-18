@@ -37,7 +37,7 @@ var userSessionListCmd = &cobra.Command{
 			return err
 		}
 
-		sessions, err := client.New(ctx, debug, insecure).ListSessions(sessionUser)
+		sessions, err := client.New(ctx, debug, insecure || ctx.Insecure).ListSessions(sessionUser)
 		if err != nil {
 			return err
 		}

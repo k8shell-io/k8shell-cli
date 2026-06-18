@@ -32,7 +32,7 @@ var loginCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		for _, ctx := range cfg.Contexts {
 			if ctx.Server == loginServer && ctx.Token != "" {
-				c := client.New(&ctx, debug, insecure)
+				c := client.New(&ctx, debug, insecure || ctx.Insecure)
 				if profile, err := c.GetProfile(); err == nil {
 					fmt.Printf("Already logged in as %s (context %q).\n", profile.Username, ctx.Name)
 					return nil
@@ -85,7 +85,7 @@ var loginCmd = &cobra.Command{
 		}
 
 		_ = cfg.DeleteContext(name)
-		if err := cfg.AddContext(config.Context{Name: name, Server: loginServer, Token: token.Token}); err != nil {
+		if err := cfg.AddContext(config.Context{Name: name, Server: loginServer, Token: token.Token, Insecure: insecure}); err != nil {
 			return err
 		}
 		cfg.CurrentContext = name

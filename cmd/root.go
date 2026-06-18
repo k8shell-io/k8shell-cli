@@ -23,12 +23,11 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "k8shell",
-	Short: "Manage users, SSH sessions, and server contexts for k8shell",
+	Short: "Manage users, workspaces, SSH sessions, and server contexts for k8shell",
 	Long: `k8shell connects to a k8shell server and provides commands for managing
-its resources. Server connections are stored as named contexts, each holding
-a URL and an authentication token.
+its resources.
 
-Run 'k8shell --help' on any subcommand to see its available options.`,
+Run 'k8shell --help' on any command to see its available options.`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {

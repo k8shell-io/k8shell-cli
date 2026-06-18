@@ -9,9 +9,10 @@ import (
 )
 
 type Context struct {
-	Name   string `yaml:"name"`
-	Server string `yaml:"server"`
-	Token  string `yaml:"token"`
+	Name     string `yaml:"name"`
+	Server   string `yaml:"server"`
+	Token    string `yaml:"token"`
+	Insecure bool   `yaml:"insecure,omitempty"`
 }
 
 type Config struct {

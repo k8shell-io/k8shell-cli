@@ -26,5 +26,7 @@ build-darwin-arm64:
 
 build-darwin: build-darwin-amd64 build-darwin-arm64
 
+build-all: build build-darwin
+
 clean:
 	@rm -rf $(BIN_DIR)

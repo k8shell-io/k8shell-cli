@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	addServer string
-	addToken  string
+	addServer   string
+	addToken    string
+	addInsecure bool
 )
 
 var contextAddCmd = &cobra.Command{
@@ -36,9 +37,10 @@ var contextAddCmd = &cobra.Command{
 		}
 
 		ctx := config.Context{
-			Name:   args[0],
-			Server: addServer,
-			Token:  token,
+			Name:     args[0],
+			Server:   addServer,
+			Token:    token,
+			Insecure: addInsecure,
 		}
 		if err := cfg.AddContext(ctx); err != nil {
 			return err
@@ -54,5 +56,6 @@ var contextAddCmd = &cobra.Command{
 func init() {
 	contextAddCmd.Flags().StringVar(&addServer, "server", "", "API server URL (required)")
 	contextAddCmd.Flags().StringVar(&addToken, "token", "", "PAT token (prompted securely if omitted)")
+	contextAddCmd.Flags().BoolVar(&addInsecure, "insecure", false, "skip TLS certificate verification for this context")
 	_ = contextAddCmd.MarkFlagRequired("server")
 }
