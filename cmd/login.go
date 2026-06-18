@@ -1,3 +1,6 @@
+// Copyright 2026 The k8shell CLI Authors.
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package cmd
 
 import (
@@ -105,6 +108,7 @@ func init() {
 	_ = loginCmd.MarkFlagRequired("server")
 }
 
+// pollForToken polls the server until the PAT for the given state is ready or the context deadline is exceeded.
 func pollForToken(c *client.Client, state string, timeout time.Duration) (*models.UserToken, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -128,6 +132,7 @@ func pollForToken(c *client.Client, state string, timeout time.Duration) (*model
 	}
 }
 
+// buildLoginURL constructs the browser-facing OAuth login URL for the given server, state, and provider.
 func buildLoginURL(server, state, provider string) string {
 	redirectURI, _ := url.Parse(server + "/auth/callback")
 	rq := redirectURI.Query()
@@ -145,6 +150,7 @@ func buildLoginURL(server, state, provider string) string {
 	return u.String()
 }
 
+// pickProvider prompts the user to select a login provider when more than one is available.
 func pickProvider(providers []string) (string, error) {
 	if len(providers) == 1 {
 		return providers[0], nil
@@ -171,6 +177,7 @@ func pickProvider(providers []string) (string, error) {
 	return providers[n-1], nil
 }
 
+// randomState generates a 16-byte cryptographically random hex string for use as an OAuth state parameter.
 func randomState() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
@@ -179,6 +186,7 @@ func randomState() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+// openBrowser launches the user's default browser to the given URL using the platform-appropriate command.
 func openBrowser(rawURL string) error {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {

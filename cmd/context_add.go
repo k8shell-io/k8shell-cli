@@ -1,3 +1,6 @@
+// Copyright 2026 The k8shell CLI Authors.
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package cmd
 
 import (

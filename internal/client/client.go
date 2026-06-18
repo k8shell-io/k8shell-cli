@@ -1,3 +1,6 @@
+// Copyright 2026 The k8shell CLI Authors.
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package client
 
 import (
@@ -13,6 +16,7 @@ import (
 	"github.com/k8shell-io/k8shell/internal/config"
 )
 
+// Client is an authenticated HTTP client for the k8shell API.
 type Client struct {
 	server string
 	token  string
@@ -20,6 +24,7 @@ type Client struct {
 	http   *http.Client
 }
 
+// New creates a Client from the given context, with optional debug logging and TLS verification skipping.
 func New(ctx *config.Context, debug, insecure bool) *Client {
 	return &Client{
 		server: ctx.Server,
@@ -29,11 +34,12 @@ func New(ctx *config.Context, debug, insecure bool) *Client {
 	}
 }
 
-// NewAnonymous creates a client for unauthenticated requests (e.g. login flow).
+// NewAnonymous creates a Client for unauthenticated requests (e.g. the login flow).
 func NewAnonymous(server string, debug, insecure bool) *Client {
 	return &Client{server: server, debug: debug, http: newHTTPClient(insecure)}
 }
 
+// newHTTPClient returns a plain http.Client, or one that skips TLS verification when insecure is true.
 func newHTTPClient(insecure bool) *http.Client {
 	if !insecure {
 		return &http.Client{}
@@ -54,6 +60,7 @@ func (c *Client) userPath(username string) string {
 	return "/api/v1/users/" + username
 }
 
+// maskToken returns the first six characters of the token followed by "***", for safe logging.
 func (c *Client) maskToken() string {
 	if len(c.token) <= 6 {
 		return "***"
@@ -61,6 +68,7 @@ func (c *Client) maskToken() string {
 	return c.token[:6] + "***"
 }
 
+// debugRequest writes outgoing request headers to stderr.
 func (c *Client) debugRequest(req *http.Request) {
 	fmt.Fprintf(os.Stderr, "> %s %s\n", req.Method, req.URL)
 	keys := make([]string, 0, len(req.Header))
@@ -78,6 +86,7 @@ func (c *Client) debugRequest(req *http.Request) {
 	fmt.Fprintln(os.Stderr, ">")
 }
 
+// debugResponse writes incoming response headers to stderr.
 func (c *Client) debugResponse(resp *http.Response) {
 	fmt.Fprintf(os.Stderr, "< %s\n", resp.Status)
 	keys := make([]string, 0, len(resp.Header))
@@ -91,10 +100,12 @@ func (c *Client) debugResponse(resp *http.Response) {
 	fmt.Fprintln(os.Stderr, "<")
 }
 
+// APIError is returned for non-2xx responses and carries the HTTP status code.
 type APIError struct {
 	StatusCode int
 }
 
+// Error implements the error interface, mapping common HTTP status codes to human-readable messages.
 func (e *APIError) Error() string {
 	switch e.StatusCode {
 	case http.StatusUnauthorized:
@@ -110,6 +121,7 @@ func (e *APIError) Error() string {
 	}
 }
 
+// get performs an authenticated GET request and JSON-decodes the response body into out.
 func (c *Client) get(path string, out any) error {
 	req, err := http.NewRequest(http.MethodGet, c.server+path, nil)
 	if err != nil {
@@ -141,6 +153,7 @@ func (c *Client) get(path string, out any) error {
 	return json.NewDecoder(resp.Body).Decode(out)
 }
 
+// ListProviders returns the list of configured OAuth provider IDs from the server.
 func (c *Client) ListProviders() ([]string, error) {
 	var providers []string
 	if err := c.get("/api/v1/auth/providers", &providers); err != nil {
@@ -149,8 +162,8 @@ func (c *Client) ListProviders() ([]string, error) {
 	return providers, nil
 }
 
-// PollToken checks whether the PAT for the given state is ready.
-// Returns (nil, nil) when still pending (202), (token, nil) when ready (200).
+// PollToken checks whether the PAT for the given OAuth state is ready.
+// Returns (nil, nil) when still pending (202), or (token, nil) when ready (200).
 func (c *Client) PollToken(state string) (*models.UserToken, error) {
 	u, err := url.Parse(c.server + "/api/v1/auth/token")
 	if err != nil {
@@ -188,6 +201,7 @@ func (c *Client) PollToken(state string) (*models.UserToken, error) {
 	return &token, nil
 }
 
+// GetProfile returns the profile of the authenticated user.
 func (c *Client) GetProfile() (*models.User, error) {
 	var u models.User
 	if err := c.get("/api/v1/me/profile", &u); err != nil {
@@ -196,6 +210,7 @@ func (c *Client) GetProfile() (*models.User, error) {
 	return &u, nil
 }
 
+// ListUsers returns all users visible to the authenticated token.
 func (c *Client) ListUsers() ([]models.User, error) {
 	var users []models.User
 	if err := c.get("/api/v1/users", &users); err != nil {
@@ -204,6 +219,7 @@ func (c *Client) ListUsers() ([]models.User, error) {
 	return users, nil
 }
 
+// ListSessions returns SSH sessions for the given username, or for the authenticated user if username is empty.
 func (c *Client) ListSessions(username string) ([]models.SSHSession, error) {
 	var sessions []models.SSHSession
 	if err := c.get(c.userPath(username)+"/sessions", &sessions); err != nil {

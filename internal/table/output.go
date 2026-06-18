@@ -1,3 +1,6 @@
+// Copyright 2026 The k8shell CLI Authors.
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package table
 
 import (
@@ -23,10 +26,12 @@ var (
 
 var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
+// visibleLen returns the number of visible runes in s, excluding ANSI escape sequences.
 func visibleLen(s string) int {
 	return utf8.RuneCountInString(ansiEscape.ReplaceAllString(s, ""))
 }
 
+// truncate shortens s to at most max visible runes, appending "…" if truncation occurs.
 func truncate(s string, max int) string {
 	if max <= 0 || visibleLen(s) <= max {
 		return s
@@ -38,6 +43,7 @@ func truncate(s string, max int) string {
 	return string(runes[:max-1]) + "…"
 }
 
+// truncateLine hard-truncates s to maxWidth runes after stripping ANSI codes, with no ellipsis.
 func truncateLine(s string, maxWidth int) string {
 	plain := ansiEscape.ReplaceAllString(s, "")
 	if utf8.RuneCountInString(plain) <= maxWidth {
@@ -46,6 +52,7 @@ func truncateLine(s string, maxWidth int) string {
 	return string([]rune(plain)[:maxWidth])
 }
 
+// termWidth returns the current terminal width, or 0 if it cannot be determined.
 func termWidth() int {
 	w, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil || w <= 0 {
@@ -186,6 +193,7 @@ func compareAny(a, b any, desc bool) int {
 	return result
 }
 
+// boolInt converts a bool to 0 or 1 for comparison purposes.
 func boolInt(b bool) int {
 	if b {
 		return 1
@@ -193,6 +201,7 @@ func boolInt(b bool) int {
 	return 0
 }
 
+// compareTimes compares two *time.Time values, treating nil as less than any non-nil value.
 func compareTimes(a, b *time.Time) int {
 	switch {
 	case a == nil && b == nil:
@@ -269,16 +278,20 @@ func Table[T any](p *Printer, cols []Col[T], items []T, sort string) error {
 	return nil
 }
 
+// Printer renders output as either a formatted table or indented JSON.
 type Printer struct {
 	jsonMode bool
 	wrap     bool
 }
 
+// New creates a Printer. When noANSI is true, color output is globally disabled.
 func New(jsonMode, noANSI, wrap bool) *Printer {
 	color.NoColor = noANSI
 	return &Printer{jsonMode: jsonMode, wrap: wrap}
 }
 
+// table writes a header row followed by data rows to stdout, padding columns to a consistent width.
+// Lines are clipped to the terminal width unless wrap is enabled.
 func (p *Printer) table(cols []Column, rows [][]string) {
 	lineMax := 0
 	if !p.wrap {
@@ -335,12 +348,14 @@ func (p *Printer) table(cols []Column, rows [][]string) {
 	}
 }
 
+// JSON encodes v as indented JSON and writes it to stdout.
 func (p *Printer) JSON(v any) error {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	return enc.Encode(v)
 }
 
+// IsJSON reports whether the printer is in JSON output mode.
 func (p *Printer) IsJSON() bool {
 	return p.jsonMode
 }

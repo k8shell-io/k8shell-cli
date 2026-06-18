@@ -1,3 +1,6 @@
+// Copyright 2026 The k8shell CLI Authors.
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package cmd
 
 import (
@@ -10,7 +13,7 @@ var contextDeleteCmd = &cobra.Command{
 	Use:     "delete <name>",
 	Aliases: []string{"del"},
 	Short:   "Delete a context",
-	Args:  cobra.ExactArgs(1),
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
 		if err := cfg.DeleteContext(name); err != nil {

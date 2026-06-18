@@ -1,4 +1,4 @@
-# k8shell
+# k8shell CLI
 
 Command-line interface for managing k8shell resources — users, sessions, and multi-environment contexts.
 
@@ -29,13 +29,20 @@ contexts:
   - name: staging
     server: https://staging.k8shell.example.com
     token: <your-token>
+    insecure: true   # skip TLS verification for this context
 ```
 
 ## Quick Start
 
 ```bash
-# Add your first context (token is prompted securely)
+# Log in via browser — saves a context automatically
+k8shell login --server https://k8shell.example.com
+
+# Or add a context manually (token is prompted securely if --token is omitted)
 k8shell context add prod --server https://k8shell.example.com
+
+# Add a context for a server with a self-signed certificate
+k8shell context add dev --server https://dev.k8shell.example.com --insecure
 
 # List all configured contexts
 k8shell context list
@@ -55,22 +62,37 @@ k8shell user session list --user alice
 
 ## Commands
 
+### login
+
+```
+k8shell login --server <url> [--name <context-name>] [--timeout <duration>]
+```
+
+Authenticates via browser OAuth and saves the resulting PAT to a named context. The context name defaults to the server hostname. Pass `--insecure` (global flag) to skip TLS verification; this is persisted in the saved context.
+
 ### context
+
+Aliases: `ctx`
 
 | Command | Description |
 |---|---|
-| `context list` | List all configured contexts |
-| `context add <name> --server <url>` | Add a new context (token prompted if omitted) |
+| `context list [--sort <fields>]` | List all configured contexts |
+| `context add <name> --server <url> [--insecure]` | Add a new context; token prompted if `--token` is omitted |
 | `context use <name>` | Switch the active context |
 | `context delete <name>` | Remove a context |
 
+`--insecure` on `context add` is stored in the config and applied automatically to every command that uses that context — you won't need to pass `--insecure` again.
+
 ### user
+
+Aliases: `usr`
 
 | Command | Description |
 |---|---|
-| `user list` | List all users |
-| `user session list` | List sessions (defaults to authenticated user) |
-| `user session list --user <name>` | List sessions for a specific user |
+| `user list [--sort <fields>]` | List all users |
+| `user session list [-u <username>] [--sort <fields>]` | List sessions; defaults to the authenticated user |
+
+`list` accepts the alias `ls`. Sort fields are the column names shown in the output, prefixed with `-` for descending order (e.g. `--sort username,-email`).
 
 ## Global Flags
 
@@ -78,6 +100,7 @@ k8shell user session list --user alice
 |---|---|
 | `--config <path>` | Path to config file |
 | `-c, --context <name>` | Override the active context for this invocation |
+| `--insecure` | Skip TLS certificate verification |
 | `--json` | Output as JSON |
 | `--no-ansi` | Disable color output |
 | `-w, --wrap` | Allow lines to wrap beyond terminal width |
@@ -85,4 +108,4 @@ k8shell user session list --user alice
 
 ## License
 
-See [LICENSE](LICENSE).
+Copyright 2026 The k8shell CLI Authors. Licensed under the [GNU Affero General Public License v3.0](LICENSE).

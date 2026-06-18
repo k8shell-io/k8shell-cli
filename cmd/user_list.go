@@ -1,3 +1,6 @@
+// Copyright 2026 The k8shell CLI Authors.
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package cmd
 
 import (
@@ -48,6 +51,7 @@ func init() {
 	userListCmd.Flags().StringVar(&userSortFlag, "sort", "", "sort by fields, e.g. username,-email (prefix - for descending)")
 }
 
+// userStatus derives a display status string from the user's locked and validity fields.
 func userStatus(u models.User) string {
 	if u.Locked {
 		return "locked"

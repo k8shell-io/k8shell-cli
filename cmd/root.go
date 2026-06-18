@@ -1,3 +1,6 @@
+// Copyright 2026 The k8shell CLI Authors.
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package cmd
 
 import (
@@ -45,6 +48,7 @@ Run 'k8shell --help' on any command to see its available options.`,
 	},
 }
 
+// Execute runs the root cobra command and exits with a non-zero status on error.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

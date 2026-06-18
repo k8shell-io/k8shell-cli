@@ -1,3 +1,6 @@
+// Copyright 2026 The k8shell CLI Authors.
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package cmd
 
 import (
@@ -57,6 +60,7 @@ func init() {
 		"sort by fields, e.g. startTime,-bytesIn (prefix - for descending)")
 }
 
+// fmtBytes renders a byte count as a human-readable string (B, KB, MB, GB).
 func fmtBytes(v any) string {
 	b, _ := v.(int64)
 	switch {
@@ -71,6 +75,7 @@ func fmtBytes(v any) string {
 	}
 }
 
+// fmtTime renders a *time.Time field as a local "YYYY-MM-DD HH:MM" string, or "-" if nil.
 func fmtTime(v any) string {
 	t, _ := v.(*time.Time)
 	if t == nil {
