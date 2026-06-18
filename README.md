@@ -2,6 +2,8 @@
 
 Command-line interface for managing k8shell resources — users, sessions, and multi-environment contexts.
 
+> Requires a running k8shell platform with the API server reachable at a configured address.
+
 ## Installation
 
 ```bash
@@ -62,49 +64,7 @@ k8shell user session list --user alice
 
 ## Commands
 
-### login
-
-```
-k8shell login --server <url> [--name <context-name>] [--timeout <duration>]
-```
-
-Authenticates via browser OAuth and saves the resulting PAT to a named context. The context name defaults to the server hostname. Pass `--insecure` (global flag) to skip TLS verification; this is persisted in the saved context.
-
-### context
-
-Aliases: `ctx`
-
-| Command | Description |
-|---|---|
-| `context list [--sort <fields>]` | List all configured contexts |
-| `context add <name> --server <url> [--insecure]` | Add a new context; token prompted if `--token` is omitted |
-| `context use <name>` | Switch the active context |
-| `context delete <name>` | Remove a context |
-
-`--insecure` on `context add` is stored in the config and applied automatically to every command that uses that context — you won't need to pass `--insecure` again.
-
-### user
-
-Aliases: `usr`
-
-| Command | Description |
-|---|---|
-| `user list [--sort <fields>]` | List all users |
-| `user session list [-u <username>] [--sort <fields>]` | List sessions; defaults to the authenticated user |
-
-`list` accepts the alias `ls`. Sort fields are the column names shown in the output, prefixed with `-` for descending order (e.g. `--sort username,-email`).
-
-## Global Flags
-
-| Flag | Description |
-|---|---|
-| `--config <path>` | Path to config file |
-| `-c, --context <name>` | Override the active context for this invocation |
-| `--insecure` | Skip TLS certificate verification |
-| `--json` | Output as JSON |
-| `--no-ansi` | Disable color output |
-| `-w, --wrap` | Allow lines to wrap beyond terminal width |
-| `--debug` | Print request/response headers to stderr |
+For a complete reference of all commands, see the [k8shell CLI docs](https://docs.k8shell.io/concepts/k8shell-cli).
 
 ## License
 
