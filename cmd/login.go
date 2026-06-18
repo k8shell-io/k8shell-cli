@@ -31,7 +31,7 @@ var (
 
 var loginCmd = &cobra.Command{
 	Use:   "login",
-	Short: "Log in via browser and save credentials to a context",
+	Short: "Login via browser and save credentials to a context",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		for _, ctx := range cfg.Contexts {
 			if ctx.Server == loginServer && ctx.Token != "" {
@@ -88,7 +88,9 @@ var loginCmd = &cobra.Command{
 		}
 
 		_ = cfg.DeleteContext(name)
-		if err := cfg.AddContext(config.Context{Name: name, Server: loginServer, Token: token.Token, Insecure: insecure}); err != nil {
+		newCtx := config.Context{Name: name, Server: loginServer, Token: token.Token, Username: token.Username, Insecure: insecure}
+		newCtx.SetIntegrity()
+		if err := cfg.AddContext(newCtx); err != nil {
 			return err
 		}
 		cfg.CurrentContext = name

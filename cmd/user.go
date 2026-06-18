@@ -13,5 +13,4 @@ var userCmd = &cobra.Command{
 
 func init() {
 	userCmd.AddCommand(userListCmd)
-	userCmd.AddCommand(userSessionCmd)
 }

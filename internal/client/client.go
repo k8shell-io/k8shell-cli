@@ -4,6 +4,7 @@
 package client
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -153,6 +154,76 @@ func (c *Client) get(path string, out any) error {
 	return json.NewDecoder(resp.Body).Decode(out)
 }
 
+// post performs an authenticated POST request, JSON-encoding body, and decodes the response into out.
+// Pass nil for out to discard the response body.
+func (c *Client) post(path string, body any, out any) error {
+	b, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, c.server+path, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	if c.debug {
+		c.debugRequest(req)
+	}
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if c.debug {
+		c.debugResponse(resp)
+	}
+
+	if resp.StatusCode >= 400 {
+		return &APIError{StatusCode: resp.StatusCode}
+	}
+	if out != nil && resp.StatusCode != http.StatusNoContent {
+		return json.NewDecoder(resp.Body).Decode(out)
+	}
+	return nil
+}
+
+// delete performs an authenticated DELETE request and discards the response body.
+func (c *Client) delete(path string) error {
+	req, err := http.NewRequest(http.MethodDelete, c.server+path, nil)
+	if err != nil {
+		return err
+	}
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+
+	if c.debug {
+		c.debugRequest(req)
+	}
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if c.debug {
+		c.debugResponse(resp)
+	}
+
+	if resp.StatusCode >= 400 {
+		return &APIError{StatusCode: resp.StatusCode}
+	}
+	return nil
+}
+
 // ListProviders returns the list of configured OAuth provider IDs from the server.
 func (c *Client) ListProviders() ([]string, error) {
 	var providers []string
@@ -199,31 +270,4 @@ func (c *Client) PollToken(state string) (*models.UserToken, error) {
 		return nil, err
 	}
 	return &token, nil
-}
-
-// GetProfile returns the profile of the authenticated user.
-func (c *Client) GetProfile() (*models.User, error) {
-	var u models.User
-	if err := c.get("/api/v1/me/profile", &u); err != nil {
-		return nil, err
-	}
-	return &u, nil
-}
-
-// ListUsers returns all users visible to the authenticated token.
-func (c *Client) ListUsers() ([]models.User, error) {
-	var users []models.User
-	if err := c.get("/api/v1/users", &users); err != nil {
-		return nil, err
-	}
-	return users, nil
-}
-
-// ListSessions returns SSH sessions for the given username, or for the authenticated user if username is empty.
-func (c *Client) ListSessions(username string) ([]models.SSHSession, error) {
-	var sessions []models.SSHSession
-	if err := c.get(c.userPath(username)+"/sessions", &sessions); err != nil {
-		return nil, err
-	}
-	return sessions, nil
 }

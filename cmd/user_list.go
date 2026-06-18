@@ -11,15 +11,15 @@ import (
 )
 
 var userColumns = []table.Col[models.User]{
-	{Header: "USERNAME",   MaxWidth: 20,  Field: "username"},
-	{Header: "FULLNAME",   MaxWidth: 20,  Field: "fullname"},
-	{Header: "EMAIL",      MaxWidth: 30,  Field: "email"},
-	{Header: "ORG",        MaxWidth: 15,  Field: "organization"},
-	{Header: "ROLES",      MaxWidth: 20,  Field: "roles",      Fmt: fmtRoles},
-	{Header: "BLUEPRINTS", MaxWidth: 30,  Field: "blueprints", Fmt: fmtJoin},
-	{Header: "SUDO",       MaxWidth: 5,   Field: "sudo",       Fmt: fmtBool},
-	{Header: "SOURCE",     MaxWidth: 122, Field: "source"},
-	{Header: "STATUS",     MaxWidth: 8,   Fn: userStatus},
+	{Header: "USERNAME",   MaxWidth: 20,  Help: "login username",                                  Field: "username"},
+	{Header: "FULLNAME",   MaxWidth: 20,  Help: "display name",                                    Field: "fullname"},
+	{Header: "EMAIL",      MaxWidth: 30,  Help: "email address",                                   Field: "email"},
+	{Header: "ORG",        MaxWidth: 15,  Help: "organization",                                    Field: "organization"},
+	{Header: "ROLES",      MaxWidth: 20,  Help: "assigned roles (comma-separated)",                Field: "roles",      Fmt: table.FmtRoles},
+	{Header: "BLUEPRINTS", MaxWidth: 30,  Help: "allowed blueprints (comma-separated)",            Field: "blueprints", Fmt: table.FmtJoin},
+	{Header: "SUDO",       MaxWidth: 5,   Help: "sudo access (yes/no)",                            Field: "sudo",       Fmt: table.FmtBool},
+	{Header: "SOURCE",     MaxWidth: 122, Help: "identity source (e.g. github, google)",           Field: "source"},
+	{Header: "STATUS",     MaxWidth: 8,   Help: "active, locked, or invalid",                      Fn: userStatus},
 }
 
 var userSortFlag string
@@ -27,7 +27,8 @@ var userSortFlag string
 var userListCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"ls"},
-	Short:   "List users",
+	Short: "List users",
+	Long:  "List users visible to the authenticated token.\n\n" + table.ColumnHelp(userColumns),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, err := cfg.ActiveContext()
 		if err != nil {

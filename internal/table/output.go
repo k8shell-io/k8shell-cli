@@ -77,9 +77,30 @@ type Column struct {
 type Col[T any] struct {
 	Header   string
 	MaxWidth int
+	Help     string           // short description shown in --help output
 	Field    string           // json/yaml tag name
 	Fmt      func(any) string // optional; applied to the raw field value
 	Fn       func(T) string   // for computed columns; takes precedence over Field
+}
+
+// ColumnHelp returns a "Columns:\n  HEADER  description\n..." block built from
+// the Help strings of cols. Columns with an empty Help are omitted.
+func ColumnHelp[T any](cols []Col[T]) string {
+	maxLen := 0
+	for _, c := range cols {
+		if c.Help != "" && len(c.Header) > maxLen {
+			maxLen = len(c.Header)
+		}
+	}
+	var sb strings.Builder
+	sb.WriteString("Columns:\n")
+	for _, c := range cols {
+		if c.Help == "" {
+			continue
+		}
+		fmt.Fprintf(&sb, "  %-*s  %s\n", maxLen, c.Header, c.Help)
+	}
+	return strings.TrimRight(sb.String(), "\n")
 }
 
 // SortSpec holds a single sort criterion parsed from the --sort flag.

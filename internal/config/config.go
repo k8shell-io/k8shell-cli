@@ -4,6 +4,8 @@
 package config
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,10 +15,35 @@ import (
 
 // Context holds the connection details for a single k8shell server.
 type Context struct {
-	Name     string `yaml:"name"`
-	Server   string `yaml:"server"`
-	Token    string `yaml:"token"`
-	Insecure bool   `yaml:"insecure,omitempty"`
+	Name      string `yaml:"name"`
+	Server    string `yaml:"server"`
+	Token     string `yaml:"token"`
+	Username  string `yaml:"username,omitempty"`
+	TokenHash string `yaml:"tokenHash,omitempty"`
+	Insecure  bool   `yaml:"insecure,omitempty"`
+}
+
+// SetIntegrity computes and stores a hash of the token and username.
+// Call this after setting Token and Username before saving the context.
+func (ctx *Context) SetIntegrity() {
+	ctx.TokenHash = tokenHash(ctx.Token, ctx.Username)
+}
+
+// tokenHash returns hex(SHA256(token + "\x00" + username)).
+func tokenHash(token, username string) string {
+	h := sha256.Sum256([]byte(token + "\x00" + username))
+	return hex.EncodeToString(h[:])
+}
+
+// verifyIntegrity checks the stored hash against the current token and username.
+func (ctx *Context) verifyIntegrity() error {
+	if ctx.TokenHash == "" {
+		return fmt.Errorf("context %q has no integrity hash — re-run 'k8shell login' to refresh", ctx.Name)
+	}
+	if tokenHash(ctx.Token, ctx.Username) != ctx.TokenHash {
+		return fmt.Errorf("context %q integrity check failed: token/username mismatch — re-run 'k8shell login' to refresh", ctx.Name)
+	}
+	return nil
 }
 
 // Config is the top-level configuration loaded from the YAML config file.
@@ -33,6 +60,9 @@ func (c *Config) ActiveContext() (*Context, error) {
 	}
 	for i := range c.Contexts {
 		if c.Contexts[i].Name == c.CurrentContext {
+			if err := c.Contexts[i].verifyIntegrity(); err != nil {
+				return nil, err
+			}
 			return &c.Contexts[i], nil
 		}
 	}
