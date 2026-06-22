@@ -26,6 +26,7 @@ import (
 var (
 	loginServer  string
 	loginName    string
+	loginIgnore  bool
 	loginTimeout time.Duration
 )
 
@@ -33,14 +34,16 @@ var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Login via browser and save credentials to a context",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		for _, ctx := range cfg.Contexts {
-			if ctx.Server == loginServer && ctx.Token != "" {
-				c := client.New(&ctx, debug, insecure || ctx.Insecure)
-				if profile, err := c.GetProfile(); err == nil {
-					fmt.Printf("Already logged in as %s (context %q).\n", profile.Username, ctx.Name)
-					return nil
+		if !loginIgnore {
+			for _, ctx := range cfg.Contexts {
+				if ctx.Server == loginServer && ctx.Token != "" {
+					c := client.New(&ctx, debug, insecure || ctx.Insecure)
+					if profile, err := c.GetProfile(); err == nil {
+						fmt.Printf("Already logged in as %s (context %q).\n", profile.Username, ctx.Name)
+						return nil
+					}
+					break
 				}
-				break
 			}
 		}
 
@@ -85,6 +88,11 @@ var loginCmd = &cobra.Command{
 			} else {
 				name = loginServer
 			}
+			suffix, err := randomShortSuffix()
+			if err != nil {
+				return fmt.Errorf("generating context suffix: %w", err)
+			}
+			name = name + "-" + suffix
 		}
 
 		_ = cfg.DeleteContext(name)
@@ -105,7 +113,8 @@ var loginCmd = &cobra.Command{
 
 func init() {
 	loginCmd.Flags().StringVar(&loginServer, "server", "", "API server URL (required)")
-	loginCmd.Flags().StringVar(&loginName, "name", "", "context name (defaults to server hostname)")
+	loginCmd.Flags().StringVar(&loginName, "name", "", "context name (defaults to server hostname with random suffix)")
+	loginCmd.Flags().BoolVar(&loginIgnore, "ignore", false, "skip the already-logged-in check and add a new context")
 	loginCmd.Flags().DurationVar(&loginTimeout, "timeout", 5*time.Minute, "time to wait for browser login")
 	_ = loginCmd.MarkFlagRequired("server")
 }
@@ -182,6 +191,15 @@ func pickProvider(providers []string) (string, error) {
 // randomState generates a 16-byte cryptographically random hex string for use as an OAuth state parameter.
 func randomState() (string, error) {
 	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+// randomShortSuffix generates a 4-byte cryptographically random hex string for use as a context name suffix.
+func randomShortSuffix() (string, error) {
+	b := make([]byte, 4)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}

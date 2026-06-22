@@ -55,3 +55,49 @@ go build -o k8shell .
 ## Module
 
 `github.com/k8shell-io/k8shell` — shared models come from `github.com/k8shell-io/common`.
+
+## Generating the command reference
+
+When asked to **generate the command reference** (or "update the command reference"):
+
+1. Build the binary:
+   ```
+   go build -o k8shell .
+   ```
+
+2. Collect raw help output for every command and subcommand:
+   - Run `./k8shell --help`
+   - For each top-level command listed, run `./k8shell <command> --help`
+   - For each subcommand listed under that, run `./k8shell <command> <subcommand> --help`
+   - Do not recurse deeper than two levels
+
+3. Assemble into a single file with this structure — no summarising, no paraphrasing, raw `--help` output only:
+
+   ```
+   # k8shell command reference
+   # generated: <ISO-8601 date>
+
+   ## k8shell
+
+   <output of ./k8shell --help>
+
+   ---
+
+   ## k8shell <command>
+
+   <output of ./k8shell <command> --help>
+
+   ---
+
+   ## k8shell <command> <subcommand>
+
+   <output of ./k8shell <command> <subcommand> --help>
+
+   ---
+   ```
+
+4. Write the result to `/opt/shared/agent-context/k8shell-cli/command-reference.txt`,
+   replacing the file if it already exists and create direction if it does not exist. 
+
+
+

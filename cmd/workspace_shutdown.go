@@ -13,9 +13,10 @@ import (
 var shutdownDelete bool
 
 var workspaceShutdownCmd = &cobra.Command{
-	Use:   "shutdown <workspace-name>",
-	Short: "Shutdown a workspace",
-	Args:  cobra.ExactArgs(1),
+	Use:               "shutdown <workspace-name>",
+	Short:             "Shutdown a workspace",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: completeWorkspaceNames,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, err := cfg.ActiveContext()
 		if err != nil {

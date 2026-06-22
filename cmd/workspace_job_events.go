@@ -18,9 +18,10 @@ import (
 )
 
 var workspaceJobEventsCmd = &cobra.Command{
-	Use:   "job-events <workspace-name>",
-	Short: "Stream job events for a workspace",
-	Args:  cobra.ExactArgs(1),
+	Use:               "job-events <workspace-name>",
+	Short:             "Stream job events for a workspace",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: completeWorkspaceNames,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, err := cfg.ActiveContext()
 		if err != nil {

@@ -30,11 +30,18 @@ type WorkspaceCreateResponse struct {
 }
 
 // ListWorkspaces returns workspaces visible to the authenticated token.
-// When username is non-empty it is passed as a query parameter to filter by owner.
-func (c *Client) ListWorkspaces(username string) ([]models.WorkspaceDetails, error) {
-	path := "/api/v1/workspaces"
+// When username is non-empty it filters by owner. When all is true, all=true is sent as a query parameter.
+func (c *Client) ListWorkspaces(username string, all bool) ([]models.WorkspaceDetails, error) {
+	q := url.Values{}
 	if username != "" {
-		path += "?username=" + url.QueryEscape(username)
+		q.Set("username", username)
+	}
+	if all {
+		q.Set("all", "true")
+	}
+	path := "/api/v1/workspaces"
+	if len(q) > 0 {
+		path += "?" + q.Encode()
 	}
 	var workspaces []models.WorkspaceDetails
 	if err := c.get(path, &workspaces); err != nil {

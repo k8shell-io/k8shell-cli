@@ -9,6 +9,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/k8shell-io/k8shell/internal/client"
 	"github.com/k8shell-io/k8shell/internal/config"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -39,19 +40,27 @@ var contextAddCmd = &cobra.Command{
 			return fmt.Errorf("token must not be empty")
 		}
 
+		tmpCtx := &config.Context{Server: addServer, Token: token, Insecure: addInsecure}
+		profile, err := client.New(tmpCtx, debug, insecure || addInsecure).GetProfile()
+		if err != nil {
+			return fmt.Errorf("verifying token: %w", err)
+		}
+
 		ctx := config.Context{
 			Name:     args[0],
 			Server:   addServer,
 			Token:    token,
+			Username: profile.Username,
 			Insecure: addInsecure,
 		}
+		ctx.SetIntegrity()
 		if err := cfg.AddContext(ctx); err != nil {
 			return err
 		}
 		if err := cfg.Save(); err != nil {
 			return err
 		}
-		fmt.Printf("Context %q added.\n", args[0])
+		fmt.Printf("Context %q added (username: %s).\n", args[0], profile.Username)
 		return nil
 	},
 }

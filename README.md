@@ -1,6 +1,6 @@
 # k8shell CLI
 
-Command-line interface for managing k8shell resources — users, sessions, and multi-environment contexts.
+Command-line interface for managing k8shell resources — users, sessions, workspaces, and multi-environment contexts.
 
 > Requires a running k8shell platform with the API server reachable at a configured address.
 
@@ -28,11 +28,15 @@ contexts:
   - name: production
     server: https://k8shell.example.com
     token: <your-token>
+    username: alice          # populated automatically on login / context add
   - name: staging
     server: https://staging.k8shell.example.com
     token: <your-token>
-    insecure: true   # skip TLS verification for this context
+    username: alice
+    insecure: true           # skip TLS verification for this context
 ```
+
+`username` and `tokenHash` are written automatically when a context is created via `login` or `context add`. Do not edit them by hand.
 
 ## Quick Start
 
@@ -40,31 +44,29 @@ contexts:
 # Log in via browser — saves a context automatically
 k8shell login --server https://k8shell.example.com
 
-# Or add a context manually (token is prompted securely if --token is omitted)
+# Log in again to the same server as a different user (--ignore bypasses the already-logged-in check)
+k8shell login --server https://k8shell.example.com --ignore
+
+# Or add a context manually with a PAT (token is prompted securely if --token is omitted)
 k8shell context add prod --server https://k8shell.example.com
 
 # Add a context for a server with a self-signed certificate
 k8shell context add dev --server https://dev.k8shell.example.com --insecure
 
-# List all configured contexts
+# List and switch contexts
 k8shell context list
-
-# Switch active context
 k8shell context use prod
 
 # List users
 k8shell user list
 
 # List your active sessions
-k8shell user session list
-
-# List sessions for a specific user
-k8shell user session list --user alice
+k8shell session list
 ```
 
-## Commands
+## Documentation
 
-For a complete reference of all commands, see the [k8shell CLI docs](https://docs.k8shell.io/concepts/k8shell-cli).
+Full documentation is available at [docs.k8shell.io/concepts/k8shell-cli](https://docs.k8shell.io/concepts/k8shell-cli).
 
 ## License
 

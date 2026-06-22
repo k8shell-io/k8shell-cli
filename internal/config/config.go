@@ -36,9 +36,10 @@ func tokenHash(token, username string) string {
 }
 
 // verifyIntegrity checks the stored hash against the current token and username.
+// If no hash is stored the check is skipped; a present but wrong hash is always an error.
 func (ctx *Context) verifyIntegrity() error {
 	if ctx.TokenHash == "" {
-		return fmt.Errorf("context %q has no integrity hash — re-run 'k8shell login' to refresh", ctx.Name)
+		return nil
 	}
 	if tokenHash(ctx.Token, ctx.Username) != ctx.TokenHash {
 		return fmt.Errorf("context %q integrity check failed: token/username mismatch — re-run 'k8shell login' to refresh", ctx.Name)

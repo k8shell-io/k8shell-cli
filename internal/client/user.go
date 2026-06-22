@@ -24,9 +24,14 @@ func (c *Client) ListUsers() ([]models.User, error) {
 }
 
 // ListSessions returns SSH sessions for the given username, or for the authenticated user if username is empty.
-func (c *Client) ListSessions(username string) ([]models.SSHSession, error) {
+// When all is true, all=true is sent as a query parameter.
+func (c *Client) ListSessions(username string, all bool) ([]models.SSHSession, error) {
+	path := c.userPath(username) + "/sessions"
+	if all {
+		path += "?all=true"
+	}
 	var sessions []models.SSHSession
-	if err := c.get(c.userPath(username)+"/sessions", &sessions); err != nil {
+	if err := c.get(path, &sessions); err != nil {
 		return nil, err
 	}
 	return sessions, nil

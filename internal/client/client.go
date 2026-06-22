@@ -101,13 +101,17 @@ func (c *Client) debugResponse(resp *http.Response) {
 	fmt.Fprintln(os.Stderr, "<")
 }
 
-// APIError is returned for non-2xx responses and carries the HTTP status code.
+// APIError is returned for non-2xx responses and carries the HTTP status code and an optional message from the response body.
 type APIError struct {
 	StatusCode int
+	Message    string
 }
 
 // Error implements the error interface, mapping common HTTP status codes to human-readable messages.
 func (e *APIError) Error() string {
+	if e.Message != "" {
+		return e.Message
+	}
 	switch e.StatusCode {
 	case http.StatusUnauthorized:
 		return "unauthorized — verify your PAT token"
@@ -224,13 +228,27 @@ func (c *Client) delete(path string) error {
 	return nil
 }
 
-// ListProviders returns the list of configured OAuth provider IDs from the server.
+type providerInfo struct {
+	Name         string   `json:"name"`
+	Capabilities []string `json:"capabilities"`
+}
+
+// ListProviders returns the names of providers that support the OnboardUserWebFlow capability.
 func (c *Client) ListProviders() ([]string, error) {
-	var providers []string
+	var providers []providerInfo
 	if err := c.get("/api/v1/auth/providers", &providers); err != nil {
 		return nil, err
 	}
-	return providers, nil
+	var names []string
+	for _, p := range providers {
+		for _, cap := range p.Capabilities {
+			if cap == "OnboardUserWebFlow" {
+				names = append(names, p.Name)
+				break
+			}
+		}
+	}
+	return names, nil
 }
 
 // PollToken checks whether the PAT for the given OAuth state is ready.
@@ -263,7 +281,14 @@ func (c *Client) PollToken(state string) (*models.UserToken, error) {
 		return nil, nil // still pending
 	}
 	if resp.StatusCode >= 400 {
-		return nil, &APIError{StatusCode: resp.StatusCode}
+		apiErr := &APIError{StatusCode: resp.StatusCode}
+		var body struct {
+			Msg string `json:"msg"`
+		}
+		if json.NewDecoder(resp.Body).Decode(&body) == nil && body.Msg != "" {
+			apiErr.Message = body.Msg
+		}
+		return nil, apiErr
 	}
 	var token models.UserToken
 	if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {

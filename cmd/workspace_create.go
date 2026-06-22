@@ -104,4 +104,5 @@ func init() {
 	workspaceCreateCmd.Flags().StringVar(&createRepo, "repo", "", "repository as owner/name (owner defaults to username when omitted)")
 	workspaceCreateCmd.Flags().StringVar(&createRef, "ref", "", "repository ref — branch, tag, or commit (optional, used with --repo)")
 	workspaceCreateCmd.Flags().BoolVar(&createEvents, "events", false, "show log events instead of progress percentage")
+	_ = workspaceCreateCmd.RegisterFlagCompletionFunc("username", completeUsernames)
 }

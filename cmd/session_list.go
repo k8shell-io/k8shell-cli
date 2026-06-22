@@ -27,7 +27,10 @@ var sessionColumns = []table.Col[models.SSHSession]{
 	{Header: "BYTES_OUT", MaxWidth: 10, Help: "bytes sent to the client", Field: "bytesOut", Fmt: fmtBytes},
 }
 
-var sessionSortFlag string
+var (
+	sessionSortFlag string
+	sessionAllFlag  bool
+)
 
 var sessionListCmd = &cobra.Command{
 	Use:     "list",
@@ -45,7 +48,7 @@ var sessionListCmd = &cobra.Command{
 			username = ctx.Username
 		}
 
-		sessions, err := client.New(ctx, debug, insecure || ctx.Insecure).ListSessions(username)
+		sessions, err := client.New(ctx, debug, insecure || ctx.Insecure).ListSessions(username, sessionAllFlag)
 		if err != nil {
 			return err
 		}
@@ -63,6 +66,8 @@ func init() {
 		"username (defaults to the context user)")
 	sessionListCmd.Flags().StringVar(&sessionSortFlag, "sort", "",
 		"sort by fields, e.g. startTime,-bytesIn (prefix - for descending)")
+	sessionListCmd.Flags().BoolVar(&sessionAllFlag, "all", false, "include all sessions")
+	_ = sessionListCmd.RegisterFlagCompletionFunc("user", completeUsernames)
 }
 
 // fmtBytes renders a byte count as a human-readable string (B, KB, MB, GB).
