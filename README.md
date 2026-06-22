@@ -70,4 +70,4 @@ Full documentation is available at [docs.k8shell.io/concepts/k8shell-cli](https:
 
 ## License
 
-Copyright 2026 The k8shell CLI Authors. Licensed under the [GNU Affero General Public License v3.0](LICENSE).
+Copyright 2026 The k8shell Authors. Licensed under the [GNU Affero General Public License v3.0](LICENSE).
