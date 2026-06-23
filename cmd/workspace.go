@@ -16,4 +16,7 @@ func init() {
 	workspaceCmd.AddCommand(workspaceCreateCmd)
 	workspaceCmd.AddCommand(workspaceJobEventsCmd)
 	workspaceCmd.AddCommand(workspaceShutdownCmd)
+	workspaceCmd.AddCommand(workspaceSSHCmd)
+	workspaceCmd.AddCommand(workspaceSCPCmd)
+	workspaceCmd.AddCommand(workspaceCodeCmd)
 }
