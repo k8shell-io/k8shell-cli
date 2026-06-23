@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/url"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/k8shell-io/common/pkg/models"
 	"github.com/k8shell-io/common/pkg/userstr"
-	"github.com/k8shell-io/k8shell/internal/client"
 	"github.com/k8shell-io/k8shell/internal/config"
 )
 
@@ -29,7 +29,7 @@ var (
 // wsConnResolve builds the SSH userstring, server hostname, and workspace
 // owner username from the workspace identification flags. When b64Force is
 // true the userstring is always base64-encoded regardless of --b64.
-func wsConnResolve(b64Force bool) (ustr, server, username string, err error) {
+func wsConnResolve(cmdCtx context.Context, b64Force bool) (ustr, server, username string, err error) {
 	if wsConnPod == "" && wsConnRepo == "" {
 		return "", "", "", fmt.Errorf("one of --pod or --repo is required")
 	}
@@ -59,7 +59,7 @@ func wsConnResolve(b64Force bool) (ustr, server, username string, err error) {
 				return "", "", "", err
 			}
 		} else {
-			ws, err := client.New(ctx, debug, insecure || ctx.Insecure).GetWorkspace(wsConnPod)
+			ws, err := newClient(ctx).GetWorkspace(cmdCtx, wsConnPod)
 			if err != nil {
 				return "", "", "", err
 			}
@@ -94,7 +94,7 @@ func wsConnResolve(b64Force bool) (ustr, server, username string, err error) {
 				return "", "", "", err
 			}
 		} else {
-			ws, err := wsFindByRepo(ctx, repoOwner, repoName, wsConnRef)
+			ws, err := wsFindByRepo(cmdCtx, ctx, repoOwner, repoName, wsConnRef)
 			if err != nil {
 				return "", "", "", err
 			}
@@ -126,8 +126,8 @@ func wsConnResolve(b64Force bool) (ustr, server, username string, err error) {
 
 // wsFindByRepo lists workspaces and returns the first one matching the given
 // repo owner, name, and optional ref.
-func wsFindByRepo(ctx *config.Context, owner, name, ref string) (*models.WorkspaceDetails, error) {
-	workspaces, err := client.New(ctx, debug, insecure || ctx.Insecure).ListWorkspaces("", false)
+func wsFindByRepo(cmdCtx context.Context, ctx *config.Context, owner, name, ref string) (*models.WorkspaceDetails, error) {
+	workspaces, err := newClient(ctx).ListWorkspaces(cmdCtx, "", false)
 	if err != nil {
 		return nil, err
 	}

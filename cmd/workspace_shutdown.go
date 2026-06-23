@@ -6,7 +6,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/k8shell-io/k8shell/internal/client"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +22,7 @@ var workspaceShutdownCmd = &cobra.Command{
 			return err
 		}
 
-		if err := client.New(ctx, debug, insecure || ctx.Insecure).DeleteWorkspace(args[0], shutdownDelete); err != nil {
+		if err := newClient(ctx).DeleteWorkspace(cmd.Context(), args[0], shutdownDelete); err != nil {
 			return err
 		}
 

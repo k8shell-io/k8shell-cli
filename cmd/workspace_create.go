@@ -4,10 +4,12 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/k8shell-io/k8shell/internal/client"
+	k8shell "github.com/k8shell-io/k8shell-go"
+
 	"github.com/spf13/cobra"
 )
 
@@ -57,9 +59,9 @@ var workspaceCreateCmd = &cobra.Command{
 			return fmt.Errorf("no username specified and none saved in context; use --username or log in again")
 		}
 
-		c := client.New(ctx, debug, insecure || ctx.Insecure)
+		c := newClient(ctx)
 
-		resp, err := c.CreateWorkspace(client.WorkspaceCreateRequest{
+		resp, err := c.CreateWorkspace(cmd.Context(), k8shell.WorkspaceCreateRequest{
 			Username:  username,
 			Blueprint: createBlueprint,
 			RepoOwner: repoOwner,
@@ -67,6 +69,10 @@ var workspaceCreateCmd = &cobra.Command{
 			RepoRef:   createRef,
 		})
 		if err != nil {
+			var apiErr *k8shell.APIError
+			if errors.As(err, &apiErr) && apiErr.StatusCode == 409 {
+				return fmt.Errorf("workspace for %s already exists", createRepo)
+			}
 			return err
 		}
 
@@ -80,7 +86,7 @@ var workspaceCreateCmd = &cobra.Command{
 			fmt.Printf("Creating workspace %s...", resp.Workspace)
 		}
 
-		rc, err := c.MonitorWorkspace(resp.MonitorURL)
+		rc, err := c.MonitorWorkspace(cmd.Context(), resp.MonitorURL)
 		if err != nil {
 			if !createEvents {
 				fmt.Println()

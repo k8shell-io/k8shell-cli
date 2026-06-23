@@ -4,7 +4,8 @@
 package cmd
 
 import (
-	"github.com/k8shell-io/k8shell/internal/client"
+	"context"
+
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +22,7 @@ func completeWorkspaceNames(cmd *cobra.Command, args []string, toComplete string
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
-	workspaces, err := client.New(ctx, false, ctx.Insecure).ListWorkspaces("", false)
+	workspaces, err := newClient(ctx).ListWorkspaces(context.Background(), "", false)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
@@ -49,7 +50,7 @@ func completeUsernames(cmd *cobra.Command, args []string, toComplete string) ([]
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
-	users, err := client.New(ctx, false, ctx.Insecure).ListUsers()
+	users, err := newClient(ctx).ListUsers(context.Background())
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}

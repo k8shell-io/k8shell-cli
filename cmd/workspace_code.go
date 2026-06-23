@@ -27,7 +27,7 @@ The userstring is always base64-encoded because VS Code does not accept
 raw userstrings in remote URIs.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ustr, server, username, err := wsConnResolve(true) // always b64
+		ustr, server, username, err := wsConnResolve(cmd.Context(), true) // always b64
 		if err != nil {
 			return err
 		}

@@ -25,7 +25,7 @@ Use --print to print the SCP string instead of running it.
 The optional positional argument sets the local destination (default: .).`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ustr, server, _, err := wsConnResolve(false)
+		ustr, server, _, err := wsConnResolve(cmd.Context(), false)
 		if err != nil {
 			return err
 		}

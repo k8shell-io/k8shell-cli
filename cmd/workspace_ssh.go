@@ -22,7 +22,7 @@ Use --print to print the connection string instead of connecting.
 Any arguments after -- are passed directly to ssh.`,
 	Args: cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ustr, server, _, err := wsConnResolve(false)
+		ustr, server, _, err := wsConnResolve(cmd.Context(), false)
 		if err != nil {
 			return err
 		}

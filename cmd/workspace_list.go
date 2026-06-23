@@ -5,7 +5,6 @@ package cmd
 
 import (
 	"github.com/k8shell-io/common/pkg/models"
-	"github.com/k8shell-io/k8shell/internal/client"
 	"github.com/k8shell-io/k8shell/internal/table"
 	"github.com/spf13/cobra"
 )
@@ -49,7 +48,7 @@ var workspaceListCmd = &cobra.Command{
 			return err
 		}
 
-		workspaces, err := client.New(ctx, debug, insecure || ctx.Insecure).ListWorkspaces(workspaceUsernameFlag, workspaceAllFlag)
+		workspaces, err := newClient(ctx).ListWorkspaces(cmd.Context(), workspaceUsernameFlag, workspaceAllFlag)
 		if err != nil {
 			return err
 		}

@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"github.com/k8shell-io/common/pkg/models"
-	"github.com/k8shell-io/k8shell/internal/client"
+	k8shell "github.com/k8shell-io/k8shell-go"
 	"github.com/k8shell-io/k8shell/internal/config"
 	"github.com/spf13/cobra"
 )
@@ -37,8 +37,8 @@ var loginCmd = &cobra.Command{
 		if !loginIgnore {
 			for _, ctx := range cfg.Contexts {
 				if ctx.Server == loginServer && ctx.Token != "" {
-					c := client.New(&ctx, debug, insecure || ctx.Insecure)
-					if profile, err := c.GetProfile(); err == nil {
+					c := newClient(&ctx)
+					if profile, err := c.GetProfile(cmd.Context()); err == nil {
 						fmt.Printf("Already logged in as %s (context %q).\n", profile.Username, ctx.Name)
 						return nil
 					}
@@ -52,9 +52,16 @@ var loginCmd = &cobra.Command{
 			return fmt.Errorf("generating state: %w", err)
 		}
 
-		c := client.NewAnonymous(loginServer, debug, insecure)
+		var anonOpts []k8shell.Option
+		if debug {
+			anonOpts = append(anonOpts, k8shell.WithDebug())
+		}
+		if insecure {
+			anonOpts = append(anonOpts, k8shell.WithInsecure())
+		}
+		c := k8shell.NewAnonymous(loginServer, anonOpts...)
 
-		providers, err := c.ListProviders()
+		providers, err := c.ListProviders(cmd.Context())
 		if err != nil {
 			return fmt.Errorf("fetching providers: %w", err)
 		}
@@ -120,7 +127,7 @@ func init() {
 }
 
 // pollForToken polls the server until the PAT for the given state is ready or the context deadline is exceeded.
-func pollForToken(c *client.Client, state string, timeout time.Duration) (*models.UserToken, error) {
+func pollForToken(c *k8shell.Client, state string, timeout time.Duration) (*models.UserToken, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -132,7 +139,7 @@ func pollForToken(c *client.Client, state string, timeout time.Duration) (*model
 		case <-ctx.Done():
 			return nil, fmt.Errorf("login timed out after %s", timeout)
 		case <-ticker.C:
-			token, err := c.PollToken(state)
+			token, err := c.PollToken(ctx, state)
 			if err != nil {
 				return nil, err
 			}

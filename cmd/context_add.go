@@ -9,7 +9,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/k8shell-io/k8shell/internal/client"
 	"github.com/k8shell-io/k8shell/internal/config"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -41,7 +40,7 @@ var contextAddCmd = &cobra.Command{
 		}
 
 		tmpCtx := &config.Context{Server: addServer, Token: token, Insecure: addInsecure}
-		profile, err := client.New(tmpCtx, debug, insecure || addInsecure).GetProfile()
+		profile, err := newClient(tmpCtx).GetProfile(cmd.Context())
 		if err != nil {
 			return fmt.Errorf("verifying token: %w", err)
 		}

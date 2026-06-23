@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/k8shell-io/common/pkg/models"
-	"github.com/k8shell-io/k8shell/internal/client"
 	"github.com/k8shell-io/k8shell/internal/table"
 	"github.com/spf13/cobra"
 )
@@ -48,7 +47,7 @@ var sessionListCmd = &cobra.Command{
 			username = ctx.Username
 		}
 
-		sessions, err := client.New(ctx, debug, insecure || ctx.Insecure).ListSessions(username, sessionAllFlag)
+		sessions, err := newClient(ctx).ListSessions(cmd.Context(), username, sessionAllFlag)
 		if err != nil {
 			return err
 		}

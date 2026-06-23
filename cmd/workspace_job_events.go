@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/k8shell-io/common/pkg/models"
-	"github.com/k8shell-io/k8shell/internal/client"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -28,9 +27,9 @@ var workspaceJobEventsCmd = &cobra.Command{
 			return err
 		}
 
-		c := client.New(ctx, debug, insecure || ctx.Insecure)
+		c := newClient(ctx)
 
-		ws, err := c.GetWorkspace(args[0])
+		ws, err := c.GetWorkspace(cmd.Context(), args[0])
 		if err != nil {
 			return err
 		}
@@ -38,7 +37,7 @@ var workspaceJobEventsCmd = &cobra.Command{
 			return fmt.Errorf("workspace %q has no associated job", args[0])
 		}
 
-		rc, err := c.MonitorWorkspace("/api/v1/jobs/" + ws.JobId)
+		rc, err := c.MonitorWorkspace(cmd.Context(), "/api/v1/jobs/" + ws.JobId)
 		if err != nil {
 			return err
 		}
