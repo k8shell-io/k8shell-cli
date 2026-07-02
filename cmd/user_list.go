@@ -16,7 +16,7 @@ var userColumns = []table.Col[models.User]{
 	{Header: "ORG",        MaxWidth: 15,  Help: "organization",                                    Field: "organization"},
 	{Header: "ROLES",      MaxWidth: 20,  Help: "assigned roles (comma-separated)",                Field: "roles",      Fmt: table.FmtRoles},
 	{Header: "BLUEPRINTS", MaxWidth: 30,  Help: "allowed blueprints (comma-separated)",            Field: "blueprints", Fmt: table.FmtJoin},
-	{Header: "SUDO",       MaxWidth: 5,   Help: "sudo access (yes/no)",                            Field: "sudo",       Fmt: table.FmtBool},
+	{Header: "SUDO",       MaxWidth: 5,   Help: "sudo access (true/false)",                        Field: "sudo",       Fmt: table.FmtBool},
 	{Header: "SOURCE",     MaxWidth: 122, Help: "identity source (e.g. github, google)",           Field: "source"},
 	{Header: "STATUS",     MaxWidth: 8,   Help: "active, locked, or invalid",                      Fn: userStatus},
 }

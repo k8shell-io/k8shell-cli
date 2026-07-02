@@ -292,10 +292,46 @@ func Table[T any](p *Printer, cols []Col[T], items []T, sort string) error {
 			} else {
 				row[j] = fmt.Sprint(raw)
 			}
+			if row[j] == "" {
+				row[j] = "-"
+			}
 		}
 		rows[i] = row
 	}
 	p.table(baseCols, rows)
+	return nil
+}
+
+// Detail renders a single item as two columns: field name and value, one field per line.
+// For each column, Fn takes precedence; otherwise the field named by Field is resolved via
+// reflection, the same way as Table. Empty values are rendered as "-".
+func Detail[T any](p *Printer, cols []Col[T], item T) error {
+	rv := reflect.ValueOf(item)
+
+	maxHeader := 0
+	for _, c := range cols {
+		if len(c.Header)+1 > maxHeader {
+			maxHeader = len(c.Header) + 1
+		}
+	}
+
+	for _, col := range cols {
+		var val string
+		if col.Fn != nil {
+			val = col.Fn(item)
+		} else {
+			raw, _ := resolveField(rv, col.Field)
+			if col.Fmt != nil {
+				val = col.Fmt(raw)
+			} else {
+				val = fmt.Sprint(raw)
+			}
+		}
+		if val == "" {
+			val = "-"
+		}
+		fmt.Fprintf(os.Stdout, "%-*s  %s\n", maxHeader, col.Header+":", val)
+	}
 	return nil
 }
 
@@ -367,6 +403,11 @@ func (p *Printer) table(cols []Column, rows [][]string) {
 	for _, row := range rows {
 		fmt.Fprintln(os.Stdout, buildRow(row, false))
 	}
+}
+
+// Println writes a plain status line to stdout. Use JSON instead when in JSON mode.
+func (p *Printer) Println(s string) {
+	fmt.Fprintln(os.Stdout, s)
 }
 
 // JSON encodes v as indented JSON and writes it to stdout.
