@@ -15,17 +15,17 @@ import (
 )
 
 var (
-	addServer   string
-	addToken    string
-	addInsecure bool
+	createServer   string
+	createToken    string
+	createInsecure bool
 )
 
-var contextAddCmd = &cobra.Command{
-	Use:   "add <name>",
-	Short: "Add a new context",
+var contextCreateCmd = &cobra.Command{
+	Use:   "create <name>",
+	Short: "Create a new context",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		token := addToken
+		token := createToken
 		if token == "" {
 			fmt.Fprint(os.Stderr, "Token: ")
 			raw, err := term.ReadPassword(int(syscall.Stdin))
@@ -39,7 +39,7 @@ var contextAddCmd = &cobra.Command{
 			return fmt.Errorf("token must not be empty")
 		}
 
-		tmpCtx := &config.Context{Server: addServer, Token: token, Insecure: addInsecure}
+		tmpCtx := &config.Context{Server: createServer, Token: token, Insecure: createInsecure}
 		profile, err := newClient(tmpCtx).GetProfile(cmd.Context())
 		if err != nil {
 			return fmt.Errorf("verifying token: %w", err)
@@ -47,10 +47,10 @@ var contextAddCmd = &cobra.Command{
 
 		ctx := config.Context{
 			Name:     args[0],
-			Server:   addServer,
+			Server:   createServer,
 			Token:    token,
 			Username: profile.Username,
-			Insecure: addInsecure,
+			Insecure: createInsecure,
 		}
 		ctx.SetIntegrity()
 		if err := cfg.AddContext(ctx); err != nil {
@@ -59,14 +59,14 @@ var contextAddCmd = &cobra.Command{
 		if err := cfg.Save(); err != nil {
 			return err
 		}
-		fmt.Printf("Context %q added (username: %s).\n", args[0], profile.Username)
+		fmt.Printf("Context %q created (username: %s).\n", args[0], profile.Username)
 		return nil
 	},
 }
 
 func init() {
-	contextAddCmd.Flags().StringVar(&addServer, "server", "", "API server URL (required)")
-	contextAddCmd.Flags().StringVar(&addToken, "token", "", "PAT token (prompted securely if omitted)")
-	contextAddCmd.Flags().BoolVar(&addInsecure, "insecure", false, "skip TLS certificate verification for this context")
-	_ = contextAddCmd.MarkFlagRequired("server")
+	contextCreateCmd.Flags().StringVar(&createServer, "server", "", "API server URL (required)")
+	contextCreateCmd.Flags().StringVar(&createToken, "token", "", "PAT token (prompted securely if omitted)")
+	contextCreateCmd.Flags().BoolVar(&createInsecure, "insecure", false, "skip TLS certificate verification for this context")
+	_ = contextCreateCmd.MarkFlagRequired("server")
 }

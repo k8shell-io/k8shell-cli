@@ -9,12 +9,12 @@ import (
 	"github.com/k8shell-io/common/pkg/models"
 )
 
-// FmtBool renders a bool field as "yes" or "no".
+// FmtBool renders a bool field as "true" or "false".
 func FmtBool(v any) string {
 	if b, ok := v.(bool); ok && b {
-		return "yes"
+		return "true"
 	}
-	return "no"
+	return "false"
 }
 
 // FmtJoin renders a []string field as a comma-separated string.
