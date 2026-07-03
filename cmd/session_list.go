@@ -5,14 +5,13 @@ package cmd
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/k8shell-io/common/pkg/models"
 	"github.com/k8shell-io/k8shell/internal/table"
 	"github.com/spf13/cobra"
 )
-
-var sessionUser string
 
 var sessionColumns = []table.Col[models.SSHSession]{
 	{Header: "SESSION_ID", MaxWidth: 15, Help: "unique session identifier", Field: "sessionID"},
@@ -27,29 +26,33 @@ var sessionColumns = []table.Col[models.SSHSession]{
 }
 
 var (
-	sessionSortFlag string
-	sessionAllFlag  bool
+	sessionSortFlag      string
+	sessionUsernameFlag  string
+	sessionWorkspaceFlag string
+	sessionLastFlag      int
+	sessionAllFlag       bool
 )
 
 var sessionListCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"ls"},
-	Short:   "List sessions (defaults to the context user)",
-	Long:    "List SSH sessions for a user, or for the context user when --user is not given.\n\n" + table.ColumnHelp(sessionColumns),
+	Short:   "List sessions",
+	Long:    "List SSH sessions visible to the authenticated token.\n\n" + table.ColumnHelp(sessionColumns),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, err := cfg.ActiveContext()
 		if err != nil {
 			return err
 		}
 
-		username := sessionUser
-		if username == "" {
-			username = ctx.Username
-		}
-
-		sessions, err := newClient(ctx).ListSessions(cmd.Context(), username, sessionAllFlag)
+		sessions, err := newClient(ctx).ListSessions(cmd.Context(), sessionUsernameFlag, sessionWorkspaceFlag, sessionLastFlag, sessionAllFlag)
 		if err != nil {
 			return err
+		}
+
+		// The server applies --last by taking the most recent N sessions in
+		// descending order; reverse back to chronological order for display.
+		if sessionLastFlag > 0 {
+			slices.Reverse(sessions)
 		}
 
 		if printer.IsJSON() {
@@ -61,12 +64,13 @@ var sessionListCmd = &cobra.Command{
 }
 
 func init() {
-	sessionListCmd.Flags().StringVarP(&sessionUser, "user", "u", "",
-		"username (defaults to the context user)")
+	sessionListCmd.Flags().StringVarP(&sessionUsernameFlag, "username", "u", "", "filter by username")
+	sessionListCmd.Flags().StringVarP(&sessionWorkspaceFlag, "workspace", "k", "", "filter by workspace")
 	sessionListCmd.Flags().StringVar(&sessionSortFlag, "sort", "",
 		"sort by fields, e.g. startTime,-bytesIn (prefix - for descending)")
+	sessionListCmd.Flags().IntVarP(&sessionLastFlag, "last", "n", 0, "show only the last N sessions")
 	sessionListCmd.Flags().BoolVar(&sessionAllFlag, "all", false, "include all sessions")
-	_ = sessionListCmd.RegisterFlagCompletionFunc("user", completeUsernames)
+	_ = sessionListCmd.RegisterFlagCompletionFunc("username", completeUsernames)
 }
 
 // fmtBytes renders a byte count as a human-readable string (B, KB, MB, GB).
