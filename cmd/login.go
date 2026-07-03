@@ -56,6 +56,15 @@ var loginCmd = &cobra.Command{
 		if debug {
 			anonOpts = append(anonOpts, k8shell.WithDebug())
 		}
+		if curl {
+			anonOpts = append(anonOpts, k8shell.WithCurl())
+		}
+		if verbose {
+			anonOpts = append(anonOpts, k8shell.WithCurlVerbose())
+		}
+		if location {
+			anonOpts = append(anonOpts, k8shell.WithCurlLocation())
+		}
 		if insecure {
 			anonOpts = append(anonOpts, k8shell.WithInsecure())
 		}
