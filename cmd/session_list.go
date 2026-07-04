@@ -5,7 +5,6 @@ package cmd
 
 import (
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/k8shell-io/common/pkg/models"
@@ -47,12 +46,6 @@ var sessionListCmd = &cobra.Command{
 		sessions, err := newClient(ctx).ListSessions(cmd.Context(), sessionUsernameFlag, sessionWorkspaceFlag, sessionLastFlag, sessionAllFlag)
 		if err != nil {
 			return err
-		}
-
-		// The server applies --last by taking the most recent N sessions in
-		// descending order; reverse back to chronological order for display.
-		if sessionLastFlag > 0 {
-			slices.Reverse(sessions)
 		}
 
 		if printer.IsJSON() {

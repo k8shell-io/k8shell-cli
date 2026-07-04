@@ -26,7 +26,3 @@ require (
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.27.0 // indirect
 )
-
-// Points at the local k8shell-go checkout with GetUser/UpdateUser/GetSession added.
-// Remove this once those changes are pushed and a new k8shell-go version is tagged.
-replace github.com/k8shell-io/k8shell-go => ../k8shell-go

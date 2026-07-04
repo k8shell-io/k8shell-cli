@@ -5,22 +5,28 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"strings"
+	"syscall"
 
 	"github.com/k8shell-io/common/pkg/models"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 var (
-	setFullname string
-	setShell    string
-	setEmail    string
-	setOrg      string
-	setSudo     string
-	setUID      uint32
-	setGID      uint32
-	setLock     bool
-	setUnlock   bool
+	setFullname      string
+	setShell         string
+	setEmail         string
+	setOrg           string
+	setSudo          string
+	setUID           uint32
+	setGID           uint32
+	setLock          bool
+	setUnlock        bool
+	setPassword      bool
+	setPasswordStdin bool
 
 	setRoles       []string
 	setAddRoles    []string
@@ -54,6 +60,9 @@ var userSetCmd = &cobra.Command{
 		}
 		if setLock && setUnlock {
 			return fmt.Errorf("--lock cannot be combined with --unlock")
+		}
+		if setPassword && setPasswordStdin {
+			return fmt.Errorf("--password cannot be combined with --password-stdin")
 		}
 
 		username := args[0]
@@ -155,9 +164,34 @@ var userSetCmd = &cobra.Command{
 			}
 			updated = append(updated, "add-key")
 		}
+		if setPassword || setPasswordStdin {
+			var password string
+			if setPasswordStdin {
+				data, err := io.ReadAll(os.Stdin)
+				if err != nil {
+					return fmt.Errorf("reading password from stdin: %w", err)
+				}
+				password = strings.TrimRight(string(data), "\r\n")
+			} else {
+				fmt.Fprint(os.Stderr, "New password: ")
+				raw, err := term.ReadPassword(int(syscall.Stdin))
+				if err != nil {
+					return fmt.Errorf("reading password: %w", err)
+				}
+				fmt.Fprintln(os.Stderr)
+				password = strings.TrimSpace(string(raw))
+			}
+			if password == "" {
+				return fmt.Errorf("password must not be empty")
+			}
+			if _, err := c.SetUserPassword(cmd.Context(), username, password); err != nil {
+				return err
+			}
+			updated = append(updated, "password")
+		}
 
 		if len(updated) == 0 {
-			return fmt.Errorf("specify at least one field to update (--fullname, --shell, --email, --org, --uid, --gid, --roles, --sudo, --blueprints, --lock, --unlock, " +
+			return fmt.Errorf("specify at least one field to update (--fullname, --shell, --email, --org, --uid, --gid, --roles, --sudo, --blueprints, --lock, --unlock, --password, --password-stdin, " +
 				"--add-role, --remove-role, --add-blueprint, --remove-blueprint, --add-key, --remove-key)")
 		}
 
@@ -180,6 +214,8 @@ func init() {
 	userSetCmd.Flags().StringVar(&setSudo, "sudo", "", "sudo access (true/false)")
 	userSetCmd.Flags().BoolVar(&setLock, "lock", false, "lock the account")
 	userSetCmd.Flags().BoolVar(&setUnlock, "unlock", false, "unlock the account")
+	userSetCmd.Flags().BoolVar(&setPassword, "password", false, "set the account's local password (prompts securely; hidden input, never echoed or passed on the command line)")
+	userSetCmd.Flags().BoolVar(&setPasswordStdin, "password-stdin", false, "set the account's local password by reading it from stdin (for scripting, e.g. printf '%s' \"$PW\" | k8shell user set alice --password-stdin)")
 
 	userSetCmd.Flags().StringSliceVar(&setRoles, "roles", nil, "replace all roles, comma-separated (e.g. admin,workspace-user)")
 	userSetCmd.Flags().StringArrayVar(&setAddRoles, "add-role", nil, "grant a role, in addition to existing roles (repeatable)")
