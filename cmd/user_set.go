@@ -4,6 +4,9 @@
 package cmd
 
 import (
+	"crypto/x509"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +15,7 @@ import (
 
 	"github.com/k8shell-io/common/pkg/models"
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/term"
 )
 
@@ -36,8 +40,9 @@ var (
 	setAddBlueprints    []string
 	setRemoveBlueprints []string
 
-	setAddKeys    []string
-	setRemoveKeys []string
+	setAddKeys        []string
+	setAddKeyFiles    []string
+	setRemoveKeyIndex []int
 )
 
 var userSetCmd = &cobra.Command{
@@ -67,6 +72,15 @@ var userSetCmd = &cobra.Command{
 
 		username := args[0]
 		c := newClient(ctx)
+
+		addKeys := append([]string{}, setAddKeys...)
+		for _, path := range setAddKeyFiles {
+			key, err := loadPublicKeyFile(path)
+			if err != nil {
+				return err
+			}
+			addKeys = append(addKeys, key)
+		}
 
 		var req models.UserUpdateRequest
 		var updated []string
@@ -152,37 +166,24 @@ var userSetCmd = &cobra.Command{
 			}
 			updated = append(updated, "add-blueprint")
 		}
-		if len(setRemoveKeys) > 0 {
-			if err := c.RemoveUserKeys(cmd.Context(), username, setRemoveKeys); err != nil {
-				return err
+		if len(setRemoveKeyIndex) > 0 {
+			for _, idx := range setRemoveKeyIndex {
+				if err := c.RemoveUserAuthKey(cmd.Context(), username, idx); err != nil {
+					return err
+				}
 			}
 			updated = append(updated, "remove-key")
 		}
-		if len(setAddKeys) > 0 {
-			if err := c.AddUserKeys(cmd.Context(), username, setAddKeys); err != nil {
+		if len(addKeys) > 0 {
+			if err := c.AddUserKeys(cmd.Context(), username, addKeys); err != nil {
 				return err
 			}
 			updated = append(updated, "add-key")
 		}
 		if setPassword || setPasswordStdin {
-			var password string
-			if setPasswordStdin {
-				data, err := io.ReadAll(os.Stdin)
-				if err != nil {
-					return fmt.Errorf("reading password from stdin: %w", err)
-				}
-				password = strings.TrimRight(string(data), "\r\n")
-			} else {
-				fmt.Fprint(os.Stderr, "New password: ")
-				raw, err := term.ReadPassword(int(syscall.Stdin))
-				if err != nil {
-					return fmt.Errorf("reading password: %w", err)
-				}
-				fmt.Fprintln(os.Stderr)
-				password = strings.TrimSpace(string(raw))
-			}
-			if password == "" {
-				return fmt.Errorf("password must not be empty")
+			password, err := readPassword("New password: ", setPasswordStdin)
+			if err != nil {
+				return err
 			}
 			if _, err := c.SetUserPassword(cmd.Context(), username, password); err != nil {
 				return err
@@ -191,8 +192,9 @@ var userSetCmd = &cobra.Command{
 		}
 
 		if len(updated) == 0 {
-			return fmt.Errorf("specify at least one field to update (--fullname, --shell, --email, --org, --uid, --gid, --roles, --sudo, --blueprints, --lock, --unlock, --password, --password-stdin, " +
-				"--add-role, --remove-role, --add-blueprint, --remove-blueprint, --add-key, --remove-key)")
+			return fmt.Errorf("specify at least one field to update (--fullname, --shell, --email, --org, --uid, " +
+				"--gid, --roles, --sudo, --blueprints, --lock, --unlock, --password, --password-stdin, " +
+				"--add-role, --remove-role, --add-blueprint, --remove-blueprint, --add-key, --add-key-file, --remove-key)")
 		}
 
 		if printer.IsJSON() {
@@ -214,19 +216,20 @@ func init() {
 	userSetCmd.Flags().StringVar(&setSudo, "sudo", "", "sudo access (true/false)")
 	userSetCmd.Flags().BoolVar(&setLock, "lock", false, "lock the account")
 	userSetCmd.Flags().BoolVar(&setUnlock, "unlock", false, "unlock the account")
-	userSetCmd.Flags().BoolVar(&setPassword, "password", false, "set the account's local password (prompts securely; hidden input, never echoed or passed on the command line)")
-	userSetCmd.Flags().BoolVar(&setPasswordStdin, "password-stdin", false, "set the account's local password by reading it from stdin (for scripting, e.g. printf '%s' \"$PW\" | k8shell user set alice --password-stdin)")
+	userSetCmd.Flags().BoolVar(&setPassword, "password", false, "set the account's local password")
+	userSetCmd.Flags().BoolVar(&setPasswordStdin, "password-stdin", false, "set the account's local password by reading it from stdin")
 
-	userSetCmd.Flags().StringSliceVar(&setRoles, "roles", nil, "replace all roles, comma-separated (e.g. admin,workspace-user)")
-	userSetCmd.Flags().StringArrayVar(&setAddRoles, "add-role", nil, "grant a role, in addition to existing roles (repeatable)")
-	userSetCmd.Flags().StringArrayVar(&setRemoveRoles, "remove-role", nil, "revoke a role, leaving others untouched (repeatable)")
+	userSetCmd.Flags().StringSliceVar(&setRoles, "roles", nil, "replace all roles, comma-separated")
+	repeatableStringVar(userSetCmd.Flags(), &setAddRoles, "add-role", "grant a role, in addition to existing roles (repeatable)")
+	repeatableStringVar(userSetCmd.Flags(), &setRemoveRoles, "remove-role", "revoke a role, leaving others untouched (repeatable)")
 
 	userSetCmd.Flags().StringSliceVar(&setBlueprints, "blueprints", nil, "replace all allowed blueprints, comma-separated")
-	userSetCmd.Flags().StringArrayVar(&setAddBlueprints, "add-blueprint", nil, "grant a blueprint, in addition to existing ones (repeatable)")
-	userSetCmd.Flags().StringArrayVar(&setRemoveBlueprints, "remove-blueprint", nil, "revoke a blueprint, leaving others untouched (repeatable)")
+	repeatableStringVar(userSetCmd.Flags(), &setAddBlueprints, "add-blueprint", "grant a blueprint, in addition to existing ones (repeatable)")
+	repeatableStringVar(userSetCmd.Flags(), &setRemoveBlueprints, "remove-blueprint", "revoke a blueprint, leaving others untouched (repeatable)")
 
-	userSetCmd.Flags().StringArrayVar(&setAddKeys, "add-key", nil, "add an SSH public key, in addition to existing ones (repeatable)")
-	userSetCmd.Flags().StringArrayVar(&setRemoveKeys, "remove-key", nil, "remove an SSH public key, leaving others untouched (repeatable)")
+	repeatableStringVar(userSetCmd.Flags(), &setAddKeys, "add-key", "add an SSH public key, in addition to existing ones (repeatable)")
+	repeatableStringVar(userSetCmd.Flags(), &setAddKeyFiles, "add-key-file", "add an SSH public key read from a file — public or private, PEM or OpenSSH format (repeatable)")
+	userSetCmd.Flags().IntSliceVar(&setRemoveKeyIndex, "remove-key", nil, "remove an SSH public key by its index (repeatable)")
 }
 
 // toRoles converts role name strings to models.Role values.
@@ -248,4 +251,104 @@ func parseBool(s string) (bool, error) {
 	default:
 		return false, fmt.Errorf("must be %q or %q", "true", "false")
 	}
+}
+
+// readPassword obtains a password either from stdin (trimmed of trailing line
+// endings) or by prompting on stderr with echo disabled, depending on stdin.
+// It returns an error if the resulting password is empty.
+func readPassword(prompt string, stdin bool) (string, error) {
+	var password string
+	if stdin {
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return "", fmt.Errorf("reading password from stdin: %w", err)
+		}
+		password = strings.TrimRight(string(data), "\r\n")
+	} else {
+		fmt.Fprint(os.Stderr, prompt)
+		raw, err := term.ReadPassword(int(syscall.Stdin))
+		if err != nil {
+			return "", fmt.Errorf("reading password: %w", err)
+		}
+		fmt.Fprintln(os.Stderr)
+		password = strings.TrimSpace(string(raw))
+	}
+	if password == "" {
+		return "", fmt.Errorf("password must not be empty")
+	}
+	return password, nil
+}
+
+// loadPublicKeyFile reads the file at path and returns its contents as a single
+// SSH authorized_keys line, converting it from PEM-encoded public/private key
+// format if necessary. It fails locally if the file's contents cannot be turned
+// into a valid SSH public key, so a malformed key is never sent to the server.
+func loadPublicKeyFile(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("reading key file %q: %w", path, err)
+	}
+	key, err := toAuthorizedKey(data, path)
+	if err != nil {
+		return "", fmt.Errorf("converting key file %q to SSH public key format: %w", path, err)
+	}
+	return key, nil
+}
+
+// toAuthorizedKey converts raw key material into a single SSH authorized_keys
+// line. It accepts input already in authorized_keys format, PEM-encoded (PKIX)
+// public keys, and private keys (PEM or OpenSSH format, optionally passphrase
+// protected), deriving the public key from the latter. path is used only to
+// prompt for a passphrase if the private key is encrypted.
+func toAuthorizedKey(data []byte, path string) (string, error) {
+	if pub, comment, _, _, err := ssh.ParseAuthorizedKey(data); err == nil {
+		line := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(pub)))
+		if comment != "" {
+			line += " " + comment
+		}
+		return line, nil
+	}
+
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return "", fmt.Errorf("not a valid SSH public key, private key, or PEM-encoded key")
+	}
+
+	if strings.Contains(block.Type, "PRIVATE KEY") {
+		return authorizedKeyFromPrivateKey(data, path)
+	}
+
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return "", fmt.Errorf("parsing PEM public key: %w", err)
+	}
+	sshPub, err := ssh.NewPublicKey(pub)
+	if err != nil {
+		return "", fmt.Errorf("unsupported public key type: %w", err)
+	}
+	return strings.TrimSpace(string(ssh.MarshalAuthorizedKey(sshPub))), nil
+}
+
+// authorizedKeyFromPrivateKey derives the SSH public key line for a PEM or
+// OpenSSH format private key. If the key is passphrase-protected, the
+// passphrase is prompted for securely on stderr, the same way --password does.
+func authorizedKeyFromPrivateKey(data []byte, path string) (string, error) {
+	signer, err := ssh.ParsePrivateKey(data)
+	if err != nil {
+		var missing *ssh.PassphraseMissingError
+		if !errors.As(err, &missing) {
+			return "", fmt.Errorf("parsing private key: %w", err)
+		}
+		fmt.Fprintf(os.Stderr, "Passphrase for %s: ", path)
+		raw, perr := term.ReadPassword(int(syscall.Stdin))
+		fmt.Fprintln(os.Stderr)
+		if perr != nil {
+			return "", fmt.Errorf("reading passphrase: %w", perr)
+		}
+		signer, err = ssh.ParsePrivateKeyWithPassphrase(data, raw)
+		if err != nil {
+			return "", fmt.Errorf("parsing private key: %w", err)
+		}
+	}
+	return strings.TrimSpace(string(ssh.MarshalAuthorizedKey(signer.PublicKey()))), nil
 }

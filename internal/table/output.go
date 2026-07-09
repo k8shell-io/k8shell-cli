@@ -304,7 +304,9 @@ func Table[T any](p *Printer, cols []Col[T], items []T, sort string) error {
 
 // Detail renders a single item as two columns: field name and value, one field per line.
 // For each column, Fn takes precedence; otherwise the field named by Field is resolved via
-// reflection, the same way as Table. Empty values are rendered as "-".
+// reflection, the same way as Table. Empty values are rendered as "-". A value containing
+// newlines is rendered across multiple lines, with continuation lines left-aligned under
+// the value column.
 func Detail[T any](p *Printer, cols []Col[T], item T) error {
 	rv := reflect.ValueOf(item)
 
@@ -330,7 +332,11 @@ func Detail[T any](p *Printer, cols []Col[T], item T) error {
 		if val == "" {
 			val = "-"
 		}
-		fmt.Fprintf(os.Stdout, "%-*s  %s\n", maxHeader, col.Header+":", val)
+		lines := strings.Split(val, "\n")
+		fmt.Fprintf(os.Stdout, "%-*s  %s\n", maxHeader, col.Header+":", lines[0])
+		for _, line := range lines[1:] {
+			fmt.Fprintf(os.Stdout, "%-*s  %s\n", maxHeader, "", line)
+		}
 	}
 	return nil
 }
