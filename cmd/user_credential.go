@@ -4,6 +4,9 @@
 package cmd
 
 import (
+	"fmt"
+	"strconv"
+
 	"github.com/k8shell-io/common/pkg/models"
 	"github.com/k8shell-io/k8shell/internal/table"
 	"github.com/spf13/cobra"
@@ -11,42 +14,49 @@ import (
 
 var userCredentialCmd = &cobra.Command{
 	Use:   "credential",
-	Short: "Manage a user's external service credentials",
+	Short: "Manage external service credentials",
+}
+
+// credentialUsername holds the --username override. Empty means the token's own user.
+var credentialUsername string
+
+func addCredentialUsernameFlag(cmd *cobra.Command) {
+	cmd.Flags().StringVarP(&credentialUsername, "username", "u", "", "act on this user's credentials instead of your own (admin only)")
+	_ = cmd.RegisterFlagCompletionFunc("username", completeUsernames)
 }
 
 var userCredentialColumns = []table.Col[models.UserCredential]{
+	{Header: "ID", MaxWidth: 8, Help: "credential ID, used with `get`", Field: "id"},
+	{Header: "USERNAME", MaxWidth: 20, Help: "owning user", Field: "username"},
 	{Header: "SERVICE", MaxWidth: 20, Help: "external service name", Field: "serviceName"},
-	{Header: "SCOPE", MaxWidth: 20, Help: "granted OAuth scope", Field: "serviceScope"},
+	{Header: "SCOPE", MaxWidth: 20, Help: "granted OAuth scope; for kubernetes, the namespace", Field: "serviceScope"},
 	{Header: "SOURCE", MaxWidth: 15, Help: "how the credential was obtained", Field: "credentialSource"},
-	{Header: "SUBJECT", MaxWidth: 25, Help: "identity subject on the external service", Field: "subject"},
+	{Header: "SUBJECT", MaxWidth: 25, Help: "identity subject on the external service; for kubernetes, the service account", Field: "subject"},
 	{Header: "ACTIVE", MaxWidth: 6, Help: "whether the credential is active", Field: "isActive", Fmt: table.FmtBool},
 	{Header: "CREATED", MaxWidth: 16, Help: "creation timestamp (local time)", Fn: func(c models.UserCredential) string {
 		return c.CreatedAt.Local().Format("2006-01-02 15:04")
 	}},
-	{Header: "EXPIRES", MaxWidth: 16, Help: "expiry timestamp, or - if it does not expire", Fn: func(c models.UserCredential) string {
-		if c.ExpiresAt == nil {
-			return "-"
-		}
-		return c.ExpiresAt.Local().Format("2006-01-02 15:04")
+	{Header: "UPDATED", MaxWidth: 16, Help: "last update timestamp (local time)", Fn: func(c models.UserCredential) string {
+		return c.UpdatedAt.Local().Format("2006-01-02 15:04")
 	}},
 }
 
 var userCredentialSortFlag string
 
 var userCredentialListCmd = &cobra.Command{
-	Use:               "list <username>",
-	Aliases:           []string{"ls"},
-	Short:             "List a user's external service credentials",
-	Long:              "List external service credentials stored for a user.\n\n" + table.ColumnHelp(userCredentialColumns),
-	Args:              cobra.ExactArgs(1),
-	ValidArgsFunction: completeUsernames,
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List external service credentials for your user",
+	Long: "List external service credentials stored for your user, or another user's with --username.\n\n" +
+		table.ColumnHelp(userCredentialColumns),
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, err := cfg.ActiveContext()
 		if err != nil {
 			return err
 		}
 
-		creds, err := newClient(ctx).ListUserCredentials(cmd.Context(), args[0])
+		creds, err := newClient(ctx).ListUserCredentials(cmd.Context(), credentialUsername)
 		if err != nil {
 			return err
 		}
@@ -60,23 +70,23 @@ var userCredentialListCmd = &cobra.Command{
 }
 
 var userCredentialGetCmd = &cobra.Command{
-	Use:   "get <username> <service-name>",
-	Short: "Show a user's credential for a single external service",
-	Long:  "Show a user's credential for a single external service.\n\n" + table.ColumnHelp(userCredentialColumns),
-	Args:  cobra.ExactArgs(2),
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) != 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-		return completeUsernames(cmd, args, toComplete)
-	},
+	Use:   "get <id>",
+	Short: "Show a single external service credential by ID",
+	Long: "Show a single external service credential by ID, as found in `credential list`.\n\n" +
+		table.ColumnHelp(userCredentialColumns),
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, err := cfg.ActiveContext()
 		if err != nil {
 			return err
 		}
 
-		cred, err := newClient(ctx).GetUserCredential(cmd.Context(), args[0], args[1])
+		id, err := strconv.ParseUint(args[0], 10, 32)
+		if err != nil {
+			return fmt.Errorf("invalid credential ID %q: %w", args[0], err)
+		}
+
+		cred, err := newClient(ctx).GetUserCredential(cmd.Context(), credentialUsername, uint32(id))
 		if err != nil {
 			return err
 		}
@@ -85,12 +95,46 @@ var userCredentialGetCmd = &cobra.Command{
 			return printer.JSON(cred)
 		}
 
-		return table.Table(printer, userCredentialColumns, []models.UserCredential{*cred}, "")
+		return table.Detail(printer, userCredentialColumns, *cred)
+	},
+}
+
+var userCredentialDeleteCmd = &cobra.Command{
+	Use:     "delete <id>",
+	Aliases: []string{"del"},
+	Short:   "Delete a single external service credential by ID",
+	Long:    "Permanently delete a single external service credential by ID, as found in `credential list`.",
+	Args:    cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx, err := cfg.ActiveContext()
+		if err != nil {
+			return err
+		}
+
+		id, err := strconv.ParseUint(args[0], 10, 32)
+		if err != nil {
+			return fmt.Errorf("invalid credential ID %q: %w", args[0], err)
+		}
+
+		if err := newClient(ctx).DeleteUserCredential(cmd.Context(), credentialUsername, uint32(id)); err != nil {
+			return err
+		}
+
+		if printer.IsJSON() {
+			return printer.JSON(map[string]any{"id": id, "deleted": true})
+		}
+
+		printer.Println(fmt.Sprintf("%d: deleted", id))
+		return nil
 	},
 }
 
 func init() {
 	userCredentialListCmd.Flags().StringVar(&userCredentialSortFlag, "sort", "", "sort by fields, e.g. serviceName,-createdAt (prefix - for descending)")
+	addCredentialUsernameFlag(userCredentialListCmd)
+	addCredentialUsernameFlag(userCredentialGetCmd)
+	addCredentialUsernameFlag(userCredentialDeleteCmd)
 	userCredentialCmd.AddCommand(userCredentialListCmd)
 	userCredentialCmd.AddCommand(userCredentialGetCmd)
+	userCredentialCmd.AddCommand(userCredentialDeleteCmd)
 }

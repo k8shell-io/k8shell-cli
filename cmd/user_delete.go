@@ -11,7 +11,7 @@ import (
 
 var userDeleteCmd = &cobra.Command{
 	Use:               "delete <username>",
-	Aliases:           []string{"del", "rm"},
+	Aliases:           []string{"del"},
 	Short:             "Delete a user",
 	Long:              "Permanently delete a user.",
 	Args:              cobra.ExactArgs(1),

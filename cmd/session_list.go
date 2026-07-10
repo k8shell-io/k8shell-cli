@@ -17,7 +17,7 @@ var sessionColumns = []table.Col[models.SSHSession]{
 	{Header: "USERNAME", MaxWidth: 20, Help: "session owner", Field: "username"},
 	{Header: "WORKSPACE", MaxWidth: 20, Help: "workspace the session is attached to", Field: "workspace"},
 	{Header: "CLIENT_IP", MaxWidth: 15, Help: "IP address of the connecting client", Field: "clientIP"},
-	{Header: "CHANNELS", MaxWidth: 25, Help: "open SSH channels (comma-separated)", Field: "channels", Fmt: table.FmtJoin},
+	{Header: "OPERATIONS", MaxWidth: 25, Help: "SSH operations (comma-separated)", Field: "operations", Fmt: table.FmtJoin},
 	{Header: "START", MaxWidth: 16, Help: "session start time (local time)", Field: "startTime", Fmt: fmtTime},
 	{Header: "END", MaxWidth: 16, Help: "session end time, or - if still active", Field: "endTime", Fmt: fmtTime},
 	{Header: "BYTES_IN", MaxWidth: 10, Help: "bytes received from the client", Field: "bytesIn", Fmt: fmtBytes},
@@ -36,14 +36,20 @@ var sessionListCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"ls"},
 	Short:   "List sessions",
-	Long:    "List SSH sessions visible to the authenticated token.\n\n" + table.ColumnHelp(sessionColumns),
+	Long: "List SSH sessions for your own user. Pass --username to look up another user " +
+		"(admin only), or --all to see every session visible to the authenticated token.\n\n" + table.ColumnHelp(sessionColumns),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, err := cfg.ActiveContext()
 		if err != nil {
 			return err
 		}
 
-		sessions, err := newClient(ctx).ListSessions(cmd.Context(), sessionUsernameFlag, sessionWorkspaceFlag, sessionLastFlag, sessionAllFlag)
+		username := sessionUsernameFlag
+		if !cmd.Flags().Changed("username") && !sessionAllFlag {
+			username = ctx.Username
+		}
+
+		sessions, err := newClient(ctx).ListSessions(cmd.Context(), username, sessionWorkspaceFlag, sessionLastFlag, sessionAllFlag)
 		if err != nil {
 			return err
 		}
@@ -57,12 +63,12 @@ var sessionListCmd = &cobra.Command{
 }
 
 func init() {
-	sessionListCmd.Flags().StringVarP(&sessionUsernameFlag, "username", "u", "", "filter by username")
+	sessionListCmd.Flags().StringVarP(&sessionUsernameFlag, "username", "u", "", "look up another user's sessions instead of your own (admin only)")
 	sessionListCmd.Flags().StringVarP(&sessionWorkspaceFlag, "workspace", "k", "", "filter by workspace")
 	sessionListCmd.Flags().StringVar(&sessionSortFlag, "sort", "",
 		"sort by fields, e.g. startTime,-bytesIn (prefix - for descending)")
 	sessionListCmd.Flags().IntVarP(&sessionLastFlag, "last", "n", 0, "show only the last N sessions")
-	sessionListCmd.Flags().BoolVar(&sessionAllFlag, "all", false, "include all sessions")
+	sessionListCmd.Flags().BoolVar(&sessionAllFlag, "all", false, "include all sessions visible to the token, instead of just your own")
 	_ = sessionListCmd.RegisterFlagCompletionFunc("username", completeUsernames)
 }
 
