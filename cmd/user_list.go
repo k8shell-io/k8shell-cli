@@ -4,12 +4,15 @@
 package cmd
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/k8shell-io/common/pkg/models"
 	"github.com/k8shell-io/k8shell/internal/table"
 	"github.com/spf13/cobra"
 )
 
-var userColumns = []table.Col[models.User]{
+var userColumns = []table.Col[models.UserProfile]{
 	{Header: "USERNAME",   MaxWidth: 20,  Help: "login username",                                  Field: "username"},
 	{Header: "FULLNAME",   MaxWidth: 20,  Help: "display name",                                    Field: "fullname"},
 	{Header: "EMAIL",      MaxWidth: 30,  Help: "email address",                                   Field: "email"},
@@ -18,7 +21,7 @@ var userColumns = []table.Col[models.User]{
 	{Header: "BLUEPRINTS", MaxWidth: 30,  Help: "allowed blueprints (comma-separated)",            Field: "blueprints", Fmt: table.FmtJoin},
 	{Header: "SUDO",       MaxWidth: 5,   Help: "sudo access (true/false)",                        Field: "sudo",       Fmt: table.FmtBool},
 	{Header: "SOURCE",     MaxWidth: 122, Help: "identity source (e.g. github, google)",           Field: "source"},
-	{Header: "STATUS",     MaxWidth: 8,   Help: "active, locked, or invalid",                      Fn: userStatus},
+	{Header: "STATUS",     MaxWidth: 15,  Help: "active, locked (admin), or locked (password)",    Fn: userStatus},
 }
 
 var userSortFlag string
@@ -51,13 +54,20 @@ func init() {
 	userListCmd.Flags().StringVar(&userSortFlag, "sort", "", "sort by fields, e.g. username,-email (prefix - for descending)")
 }
 
-// userStatus derives a display status string from the user's locked and validity fields.
-func userStatus(u models.User) string {
-	if u.Locked {
-		return "locked"
+// userStatus derives a display status string from the profile's lock fields.
+// AccountLocked (an admin-set lock) and PasswordLocked (a transient
+// brute-force lockout on password auth specifically) are independent and can
+// both be set at once, e.g. "locked (admin, password)".
+func userStatus(u models.UserProfile) string {
+	var reasons []string
+	if u.AccountLocked {
+		reasons = append(reasons, "admin")
 	}
-	if !u.IsValid {
-		return "invalid"
+	if u.PasswordLocked {
+		reasons = append(reasons, "password")
 	}
-	return "active"
+	if len(reasons) == 0 {
+		return "active"
+	}
+	return fmt.Sprintf("locked (%s)", strings.Join(reasons, ", "))
 }

@@ -12,11 +12,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// userDetailColumns lists every field of models.User (except the write-only password),
-// used to render `user get` as a two-column field/value listing. The SSH key digests
-// are fetched separately (they are no longer part of the profile) and appended as an
-// extra KEYS row when rendering.
-var userDetailColumns = []table.Col[models.User]{
+// userDetailColumns lists every field of models.UserProfile (except the write-only
+// password), used to render `user get` as a two-column field/value listing. The SSH
+// key digests are fetched separately (they are no longer part of the profile) and
+// appended as an extra KEYS row when rendering.
+var userDetailColumns = []table.Col[models.UserProfile]{
 	{Header: "USERNAME", Field: "username"},
 	{Header: "FULLNAME", Field: "fullname"},
 	{Header: "EMAIL", Field: "email"},
@@ -26,11 +26,31 @@ var userDetailColumns = []table.Col[models.User]{
 	{Header: "ROLES", Field: "roles", Fmt: table.FmtRoles},
 	{Header: "BLUEPRINTS", Field: "blueprints", Fmt: table.FmtJoin},
 	{Header: "SUDO", Field: "sudo", Fmt: table.FmtBool},
-	{Header: "LOCKED", Field: "locked", Fmt: table.FmtBool},
-	{Header: "VALID", Field: "isValid", Fmt: table.FmtBool},
+	{Header: "LOCKED", Fn: formatLocked},
 	{Header: "SOURCE", Field: "source"},
 	{Header: "SHELL", Field: "shell"},
-	{Header: "EXPIRES", Fn: func(u models.User) string { return u.ExpiresAt.Local().Format("2006-01-02 15:04") }},
+}
+
+// formatLocked derives a single LOCKED display value from the profile's lock
+// fields. AccountLocked (an admin-set lock) and PasswordLocked (a transient
+// brute-force lockout on password auth specifically) are independent and can
+// both be set at once, e.g. "admin, password (2026-07-12T15:04:00Z)".
+func formatLocked(u models.UserProfile) string {
+	var reasons []string
+	if u.AccountLocked {
+		reasons = append(reasons, "admin")
+	}
+	if u.PasswordLocked {
+		reason := "password"
+		if u.PasswordLockedUntil != "" {
+			reason = fmt.Sprintf("password (%s)", u.PasswordLockedUntil)
+		}
+		reasons = append(reasons, reason)
+	}
+	if len(reasons) == 0 {
+		return "false"
+	}
+	return strings.Join(reasons, ", ")
 }
 
 // formatAuthKeys renders SSH key digests as "index:digest (source)" entries, one
@@ -69,15 +89,15 @@ var userGetCmd = &cobra.Command{
 
 		if printer.IsJSON() {
 			out := struct {
-				models.User
+				models.UserProfile
 				Keys []models.UserAuthKey `json:"keys"`
-			}{User: *user, Keys: keys}
+			}{UserProfile: *user, Keys: keys}
 			return printer.JSON(out)
 		}
 
-		cols := append(append([]table.Col[models.User]{}, userDetailColumns...), table.Col[models.User]{
+		cols := append(append([]table.Col[models.UserProfile]{}, userDetailColumns...), table.Col[models.UserProfile]{
 			Header: "AUTHKEYS",
-			Fn:     func(models.User) string { return formatAuthKeys(keys) },
+			Fn:     func(models.UserProfile) string { return formatAuthKeys(keys) },
 		})
 
 		return table.Detail(printer, cols, *user)

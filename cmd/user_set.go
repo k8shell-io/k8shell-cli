@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"bufio"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -84,33 +85,41 @@ var userSetCmd = &cobra.Command{
 
 		var req models.UserUpdateRequest
 		var updated []string
+		var profileFieldsChanged bool
 
 		if cmd.Flags().Changed("fullname") {
 			req.Fullname = &setFullname
+			profileFieldsChanged = true
 			updated = append(updated, "fullname")
 		}
 		if cmd.Flags().Changed("shell") {
 			req.Shell = &setShell
+			profileFieldsChanged = true
 			updated = append(updated, "shell")
 		}
 		if cmd.Flags().Changed("email") {
 			req.Email = &setEmail
+			profileFieldsChanged = true
 			updated = append(updated, "email")
 		}
 		if cmd.Flags().Changed("uid") {
 			req.UID = &setUID
+			profileFieldsChanged = true
 			updated = append(updated, "uid")
 		}
 		if cmd.Flags().Changed("gid") {
 			req.GID = &setGID
+			profileFieldsChanged = true
 			updated = append(updated, "gid")
 		}
 		if cmd.Flags().Changed("org") {
 			req.Org = &setOrg
+			profileFieldsChanged = true
 			updated = append(updated, "org")
 		}
 		if cmd.Flags().Changed("roles") {
 			req.Roles = toRoles(setRoles)
+			profileFieldsChanged = true
 			updated = append(updated, "roles")
 		}
 		if cmd.Flags().Changed("sudo") {
@@ -119,24 +128,39 @@ var userSetCmd = &cobra.Command{
 				return fmt.Errorf("--sudo: %w", err)
 			}
 			req.Sudo = &sudo
+			profileFieldsChanged = true
 			updated = append(updated, "sudo")
 		}
 		if cmd.Flags().Changed("blueprints") {
 			req.Blueprints = setBlueprints
+			profileFieldsChanged = true
 			updated = append(updated, "blueprints")
 		}
 		if setLock {
 			locked := true
 			req.Locked = &locked
+			profileFieldsChanged = true
 			updated = append(updated, "locked")
 		}
 		if setUnlock {
-			locked := false
-			req.Locked = &locked
+			profile, err := c.GetUserProfile(cmd.Context(), username)
+			if err != nil {
+				return fmt.Errorf("checking lock state: %w", err)
+			}
+			if profile.PasswordLocked {
+				if err := c.ClearUserPasswordLockout(cmd.Context(), username); err != nil {
+					return err
+				}
+			}
+			if profile.AccountLocked {
+				locked := false
+				req.Locked = &locked
+				profileFieldsChanged = true
+			}
 			updated = append(updated, "unlocked")
 		}
 
-		if len(updated) > 0 {
+		if profileFieldsChanged {
 			if _, err := c.UpdateUserProfile(cmd.Context(), username, req); err != nil {
 				return err
 			}
@@ -181,11 +205,24 @@ var userSetCmd = &cobra.Command{
 			updated = append(updated, "add-key")
 		}
 		if setPassword || setPasswordStdin {
+			var currentPassword string
+			if ctx.Username != "" && username == ctx.Username {
+				profile, err := c.GetProfile(cmd.Context())
+				if err != nil {
+					return fmt.Errorf("checking sudo access: %w", err)
+				}
+				if !profile.Sudo {
+					currentPassword, err = readPassword("Current password: ", setPasswordStdin)
+					if err != nil {
+						return err
+					}
+				}
+			}
 			password, err := readPassword("New password: ", setPasswordStdin)
 			if err != nil {
 				return err
 			}
-			if _, err := c.SetUserPassword(cmd.Context(), username, password); err != nil {
+			if _, err := c.SetUserPassword(cmd.Context(), username, password, currentPassword); err != nil {
 				return err
 			}
 			updated = append(updated, "password")
@@ -253,17 +290,22 @@ func parseBool(s string) (bool, error) {
 	}
 }
 
-// readPassword obtains a password either from stdin (trimmed of trailing line
-// endings) or by prompting on stderr with echo disabled, depending on stdin.
-// It returns an error if the resulting password is empty.
+// stdinPasswords lazily wraps os.Stdin so successive stdin-mode readPassword
+// calls each consume one line, letting --password-stdin supply more than one
+// secret (e.g. current password followed by new password) in sequence.
+var stdinPasswords = bufio.NewReader(os.Stdin)
+
+// readPassword obtains a password either from stdin (one line, trimmed of
+// trailing line endings) or by prompting on stderr with echo disabled,
+// depending on stdin. It returns an error if the resulting password is empty.
 func readPassword(prompt string, stdin bool) (string, error) {
 	var password string
 	if stdin {
-		data, err := io.ReadAll(os.Stdin)
-		if err != nil {
+		line, err := stdinPasswords.ReadString('\n')
+		if err != nil && !errors.Is(err, io.EOF) {
 			return "", fmt.Errorf("reading password from stdin: %w", err)
 		}
-		password = strings.TrimRight(string(data), "\r\n")
+		password = strings.TrimRight(line, "\r\n")
 	} else {
 		fmt.Fprint(os.Stderr, prompt)
 		raw, err := term.ReadPassword(int(syscall.Stdin))

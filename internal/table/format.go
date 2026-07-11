@@ -4,6 +4,8 @@
 package table
 
 import (
+	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/k8shell-io/common/pkg/models"
@@ -31,4 +33,23 @@ func FmtRoles(v any) string {
 		s[i] = string(r)
 	}
 	return strings.Join(s, ",")
+}
+
+// FmtObligations renders a map[string]string field as a comma-separated string
+// of "key=value" pairs, sorted by key for stable output.
+func FmtObligations(v any) string {
+	m, _ := v.(map[string]string)
+	if len(m) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, len(keys))
+	for i, k := range keys {
+		parts[i] = fmt.Sprintf("%s=%s", k, m[k])
+	}
+	return strings.Join(parts, ",")
 }
