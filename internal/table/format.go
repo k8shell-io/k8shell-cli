@@ -19,6 +19,15 @@ func FmtBool(v any) string {
 	return "false"
 }
 
+// FmtAllowed renders a bool field as a green "✓ true" or red "✗ false".
+// Colors are globally disabled when --no-ansi is set (via color.NoColor).
+func FmtAllowed(v any) string {
+	if b, ok := v.(bool); ok && b {
+		return Green("✓") + " true"
+	}
+	return Red("✗") + " false"
+}
+
 // FmtJoin renders a []string field as a comma-separated string.
 func FmtJoin(v any) string {
 	ss, _ := v.([]string)

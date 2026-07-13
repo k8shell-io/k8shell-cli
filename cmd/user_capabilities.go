@@ -9,9 +9,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var userCapabilitiesCmd = &cobra.Command{
+	Use:     "capabilities",
+	Aliases: []string{"caps"},
+	Short:   "Show a user's policy capabilities",
+}
+
 var userCapabilitiesColumns = []table.Col[models.Capability]{
 	{Header: "ACTION", MaxWidth: 30, Help: "policy action identifier", Field: "action"},
-	{Header: "ALLOWED", MaxWidth: 8, Help: "whether the action is permitted (true/false)", Field: "allowed", Fmt: table.FmtBool},
+	{Header: "ALLOWED", MaxWidth: 8, Help: "whether the action is permitted (true/false)", Field: "allowed", Fmt: table.FmtAllowed},
 	{Header: "OBLIGATIONS", MaxWidth: 60, Help: "policy obligations attached to the action, if allowed", Fn: formatCapabilityObligations},
 }
 
@@ -37,13 +43,14 @@ var capabilitiesUsername string
 // they'd apply to resources owned by that user instead of the caller's own.
 var capabilitiesResourceOwner string
 
-var userCapabilitiesCmd = &cobra.Command{
-	Use:     "capabilities",
-	Aliases: []string{"caps"},
-	Short:   "Show a user's policy capabilities",
-	Long: "Show which actions are allowed or denied for the authenticated token, or for another user's with --user.\n" +
+var userCapabilitiesListCmd = &cobra.Command{
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List a user's policy capabilities",
+	Long: "List which actions are allowed or denied for the authenticated token, or for another user's with --user.\n" +
 		"Use --on to check capabilities against resources owned by a specific user.\n\n" +
 		table.ColumnHelp(userCapabilitiesColumns),
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, err := cfg.ActiveContext()
 		if err != nil {
@@ -64,9 +71,10 @@ var userCapabilitiesCmd = &cobra.Command{
 }
 
 func init() {
-	userCapabilitiesCmd.Flags().StringVar(&userCapabilitiesSortFlag, "sort", "", "sort by fields, e.g. action,-allowed (prefix - for descending)")
-	userCapabilitiesCmd.Flags().StringVarP(&capabilitiesUsername, "user", "u", "", "act on this user's capabilities instead of your own (admin only)")
-	userCapabilitiesCmd.Flags().StringVar(&capabilitiesResourceOwner, "on", "", "check capabilities against resources owned by this username")
-	_ = userCapabilitiesCmd.RegisterFlagCompletionFunc("user", completeUsernames)
-	_ = userCapabilitiesCmd.RegisterFlagCompletionFunc("on", completeUsernames)
+	userCapabilitiesListCmd.Flags().StringVar(&userCapabilitiesSortFlag, "sort", "", "sort by fields, e.g. action,-allowed (prefix - for descending)")
+	userCapabilitiesListCmd.Flags().StringVarP(&capabilitiesUsername, "user", "u", "", "act on this user's capabilities instead of your own (admin only)")
+	userCapabilitiesListCmd.Flags().StringVar(&capabilitiesResourceOwner, "on", "", "check capabilities against resources owned by this username")
+	_ = userCapabilitiesListCmd.RegisterFlagCompletionFunc("user", completeUsernames)
+	_ = userCapabilitiesListCmd.RegisterFlagCompletionFunc("on", completeUsernames)
+	userCapabilitiesCmd.AddCommand(userCapabilitiesListCmd)
 }

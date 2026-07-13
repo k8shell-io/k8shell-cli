@@ -19,4 +19,5 @@ func init() {
 	userCmd.AddCommand(userDeleteCmd)
 	userCmd.AddCommand(userCredentialCmd)
 	userCmd.AddCommand(userCapabilitiesCmd)
+	userCmd.AddCommand(userTokenCmd)
 }
