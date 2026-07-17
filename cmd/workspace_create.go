@@ -100,7 +100,7 @@ var workspaceCreateCmd = &cobra.Command{
 		}
 
 		// Default mode: update a single progress line in place.
-		return printProgressStream(rc, resp.Workspace)
+		return printProgressStream(rc, "Creating", resp.Workspace)
 	},
 }
 

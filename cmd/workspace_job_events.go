@@ -48,9 +48,10 @@ var workspaceJobEventsCmd = &cobra.Command{
 }
 
 // printProgressStream reads an SSE stream and updates a single progress line in place.
+// action is the present-participle verb shown in the line, e.g. "Creating" or "Starting".
 // Progress events update the percentage; all other events are suppressed.
 // A trailing newline is printed when the stream closes.
-func printProgressStream(rc io.Reader, workspace string) error {
+func printProgressStream(rc io.Reader, action, workspace string) error {
 	scanner := bufio.NewScanner(rc)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -67,7 +68,7 @@ func printProgressStream(rc io.Reader, workspace string) error {
 		}
 		if event.Type == models.WorkspaceStreamEventTypeProgress {
 			pct := strings.TrimSuffix(event.Message, " complete")
-			fmt.Printf("\rCreating workspace %s... %s", workspace, pct)
+			fmt.Printf("\r%s workspace %s... %s", action, workspace, pct)
 		}
 	}
 	fmt.Println()

@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var startEvents bool
+
 var workspaceStartCmd = &cobra.Command{
 	Use:               "start <workspace-name>",
 	Short:             "Start a stopped workspace",
@@ -20,11 +22,41 @@ var workspaceStartCmd = &cobra.Command{
 			return err
 		}
 
-		if err := newClient(ctx).StartWorkspace(cmd.Context(), args[0]); err != nil {
+		c := newClient(ctx)
+
+		resp, err := c.StartWorkspace(cmd.Context(), args[0])
+		if err != nil {
 			return err
 		}
 
-		fmt.Printf("workspace %s started\n", args[0])
-		return nil
+		if printer.IsJSON() {
+			return printer.JSON(resp)
+		}
+
+		if startEvents {
+			fmt.Printf("Starting workspace %s (job %s)\n", resp.Workspace, resp.JobID)
+		} else {
+			fmt.Printf("Starting workspace %s...", resp.Workspace)
+		}
+
+		rc, err := c.MonitorWorkspace(cmd.Context(), resp.MonitorURL)
+		if err != nil {
+			if !startEvents {
+				fmt.Println()
+			}
+			return fmt.Errorf("monitoring workspace: %w", err)
+		}
+		defer rc.Close()
+
+		if startEvents {
+			return printEventStream(rc)
+		}
+
+		// Default mode: update a single progress line in place.
+		return printProgressStream(rc, "Starting", resp.Workspace)
 	},
+}
+
+func init() {
+	workspaceStartCmd.Flags().BoolVar(&startEvents, "events", false, "show log events instead of progress percentage")
 }
