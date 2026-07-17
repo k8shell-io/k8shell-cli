@@ -22,6 +22,8 @@ import (
 var (
 	Bold   = color.New(color.Bold).SprintFunc()
 	Active = color.New(color.FgGreen, color.Bold).SprintFunc()
+	Green  = color.New(color.FgGreen).SprintFunc()
+	Red    = color.New(color.FgRed).SprintFunc()
 )
 
 var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*m`)
@@ -81,6 +83,7 @@ type Col[T any] struct {
 	Field    string           // json/yaml tag name
 	Fmt      func(any) string // optional; applied to the raw field value
 	Fn       func(T) string   // for computed columns; takes precedence over Field
+	Wrap     bool             // Detail only: word-wrap long values across aligned continuation lines
 }
 
 // ColumnHelp returns a "Columns:\n  HEADER  description\n..." block built from
@@ -292,11 +295,94 @@ func Table[T any](p *Printer, cols []Col[T], items []T, sort string) error {
 			} else {
 				row[j] = fmt.Sprint(raw)
 			}
+			if row[j] == "" {
+				row[j] = "-"
+			}
 		}
 		rows[i] = row
 	}
 	p.table(baseCols, rows)
 	return nil
+}
+
+// Detail renders a single item as two columns: field name and value, one field per line.
+// For each column, Fn takes precedence; otherwise the field named by Field is resolved via
+// reflection, the same way as Table. Empty values are rendered as "-". A value containing
+// newlines is rendered across multiple lines, with continuation lines left-aligned under
+// the value column. Columns marked Wrap are word-wrapped to fit the terminal width (unless
+// the printer's --wrap flag disables this), also aligned under the value column.
+func Detail[T any](p *Printer, cols []Col[T], item T) error {
+	rv := reflect.ValueOf(item)
+
+	maxHeader := 0
+	for _, c := range cols {
+		if len(c.Header)+1 > maxHeader {
+			maxHeader = len(c.Header) + 1
+		}
+	}
+
+	valueWidth := 0
+	if !p.wrap {
+		tw := termWidth()
+		if tw <= 0 {
+			// Output isn't attached to a terminal (piped/redirected); assume a
+			// reasonable width so wrapped columns still wrap instead of
+			// rendering as one unbroken line.
+			tw = defaultWrapWidth
+		}
+		valueWidth = tw - maxHeader - 2
+	}
+
+	for _, col := range cols {
+		var val string
+		if col.Fn != nil {
+			val = col.Fn(item)
+		} else {
+			raw, _ := resolveField(rv, col.Field)
+			if col.Fmt != nil {
+				val = col.Fmt(raw)
+			} else {
+				val = fmt.Sprint(raw)
+			}
+		}
+		if val == "" {
+			val = "-"
+		}
+		if col.Wrap && valueWidth > 0 {
+			val = wrapText(val, valueWidth)
+		}
+		lines := strings.Split(val, "\n")
+		fmt.Fprintf(os.Stdout, "%-*s  %s\n", maxHeader, col.Header+":", lines[0])
+		for _, line := range lines[1:] {
+			fmt.Fprintf(os.Stdout, "%-*s  %s\n", maxHeader, "", line)
+		}
+	}
+	return nil
+}
+
+// defaultWrapWidth is the assumed terminal width for Detail's Wrap columns when
+// termWidth cannot determine a real one (output piped or redirected).
+const defaultWrapWidth = 100
+
+// wrapText greedily word-wraps s on space boundaries into lines of at most width
+// visible characters, returning the lines joined by "\n".
+func wrapText(s string, width int) string {
+	words := strings.Fields(s)
+	if len(words) == 0 {
+		return s
+	}
+	lines := make([]string, 0, 1)
+	line := words[0]
+	for _, w := range words[1:] {
+		if visibleLen(line)+1+visibleLen(w) > width {
+			lines = append(lines, line)
+			line = w
+		} else {
+			line += " " + w
+		}
+	}
+	lines = append(lines, line)
+	return strings.Join(lines, "\n")
 }
 
 // Printer renders output as either a formatted table or indented JSON.
@@ -367,6 +453,11 @@ func (p *Printer) table(cols []Column, rows [][]string) {
 	for _, row := range rows {
 		fmt.Fprintln(os.Stdout, buildRow(row, false))
 	}
+}
+
+// Println writes a plain status line to stdout. Use JSON instead when in JSON mode.
+func (p *Printer) Println(s string) {
+	fmt.Fprintln(os.Stdout, s)
 }
 
 // JSON encodes v as indented JSON and writes it to stdout.

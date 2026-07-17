@@ -16,6 +16,15 @@ func newClient(ctx *config.Context) *k8shell.Client {
 	if debug {
 		opts = append(opts, k8shell.WithDebug())
 	}
+	if curl {
+		opts = append(opts, k8shell.WithCurl())
+	}
+	if verbose {
+		opts = append(opts, k8shell.WithCurlVerbose())
+	}
+	if location {
+		opts = append(opts, k8shell.WithCurlLocation())
+	}
 	if insecure || ctx.Insecure {
 		opts = append(opts, k8shell.WithInsecure())
 	}

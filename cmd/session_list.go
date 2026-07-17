@@ -12,14 +12,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var sessionUser string
-
 var sessionColumns = []table.Col[models.SSHSession]{
 	{Header: "SESSION_ID", MaxWidth: 15, Help: "unique session identifier", Field: "sessionID"},
 	{Header: "USERNAME", MaxWidth: 20, Help: "session owner", Field: "username"},
 	{Header: "WORKSPACE", MaxWidth: 20, Help: "workspace the session is attached to", Field: "workspace"},
 	{Header: "CLIENT_IP", MaxWidth: 15, Help: "IP address of the connecting client", Field: "clientIP"},
-	{Header: "CHANNELS", MaxWidth: 25, Help: "open SSH channels (comma-separated)", Field: "channels", Fmt: table.FmtJoin},
+	{Header: "OPERATIONS", MaxWidth: 25, Help: "SSH operations (comma-separated)", Field: "operations", Fmt: table.FmtJoin},
 	{Header: "START", MaxWidth: 16, Help: "session start time (local time)", Field: "startTime", Fmt: fmtTime},
 	{Header: "END", MaxWidth: 16, Help: "session end time, or - if still active", Field: "endTime", Fmt: fmtTime},
 	{Header: "BYTES_IN", MaxWidth: 10, Help: "bytes received from the client", Field: "bytesIn", Fmt: fmtBytes},
@@ -27,27 +25,31 @@ var sessionColumns = []table.Col[models.SSHSession]{
 }
 
 var (
-	sessionSortFlag string
-	sessionAllFlag  bool
+	sessionSortFlag      string
+	sessionUsernameFlag  string
+	sessionWorkspaceFlag string
+	sessionLastFlag      int
+	sessionAllFlag       bool
 )
 
 var sessionListCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"ls"},
-	Short:   "List sessions (defaults to the context user)",
-	Long:    "List SSH sessions for a user, or for the context user when --user is not given.\n\n" + table.ColumnHelp(sessionColumns),
+	Short:   "List sessions",
+	Long: "List SSH sessions for your own user. Pass --username to look up another user " +
+		"(admin only), or --all to see every session visible to the authenticated token.\n\n" + table.ColumnHelp(sessionColumns),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, err := cfg.ActiveContext()
 		if err != nil {
 			return err
 		}
 
-		username := sessionUser
-		if username == "" {
+		username := sessionUsernameFlag
+		if !cmd.Flags().Changed("username") && !sessionAllFlag {
 			username = ctx.Username
 		}
 
-		sessions, err := newClient(ctx).ListSessions(cmd.Context(), username, sessionAllFlag)
+		sessions, err := newClient(ctx).ListSessions(cmd.Context(), username, sessionWorkspaceFlag, sessionLastFlag, sessionAllFlag)
 		if err != nil {
 			return err
 		}
@@ -61,12 +63,13 @@ var sessionListCmd = &cobra.Command{
 }
 
 func init() {
-	sessionListCmd.Flags().StringVarP(&sessionUser, "user", "u", "",
-		"username (defaults to the context user)")
+	sessionListCmd.Flags().StringVarP(&sessionUsernameFlag, "username", "u", "", "look up another user's sessions instead of your own (admin only)")
+	sessionListCmd.Flags().StringVarP(&sessionWorkspaceFlag, "workspace", "k", "", "filter by workspace")
 	sessionListCmd.Flags().StringVar(&sessionSortFlag, "sort", "",
 		"sort by fields, e.g. startTime,-bytesIn (prefix - for descending)")
-	sessionListCmd.Flags().BoolVar(&sessionAllFlag, "all", false, "include all sessions")
-	_ = sessionListCmd.RegisterFlagCompletionFunc("user", completeUsernames)
+	sessionListCmd.Flags().IntVarP(&sessionLastFlag, "last", "n", 0, "show only the last N sessions")
+	sessionListCmd.Flags().BoolVar(&sessionAllFlag, "all", false, "include all sessions visible to the token, instead of just your own")
+	_ = sessionListCmd.RegisterFlagCompletionFunc("username", completeUsernames)
 }
 
 // fmtBytes renders a byte count as a human-readable string (B, KB, MB, GB).

@@ -14,6 +14,6 @@ var contextCmd = &cobra.Command{
 func init() {
 	contextCmd.AddCommand(contextListCmd)
 	contextCmd.AddCommand(contextUseCmd)
-	contextCmd.AddCommand(contextAddCmd)
+	contextCmd.AddCommand(contextCreateCmd)
 	contextCmd.AddCommand(contextDeleteCmd)
 }

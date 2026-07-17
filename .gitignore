@@ -8,6 +8,9 @@
 *.so
 *.dylib
 bin
+k8shell-go
+common
+k8shell
 
 # Test binary, built with `go test -c`
 *.test

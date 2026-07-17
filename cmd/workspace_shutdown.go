@@ -9,11 +9,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var shutdownDelete bool
-
 var workspaceShutdownCmd = &cobra.Command{
 	Use:               "shutdown <workspace-name>",
-	Short:             "Shutdown a workspace",
+	Short:             "Shutdown a workspace, preserving its data",
+	Long:              "Stop a workspace's pod without deleting its data. Use 'workspace delete' to permanently remove a workspace and its data.",
 	Args:              cobra.ExactArgs(1),
 	ValidArgsFunction: completeWorkspaceNames,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -22,15 +21,11 @@ var workspaceShutdownCmd = &cobra.Command{
 			return err
 		}
 
-		if err := newClient(ctx).DeleteWorkspace(cmd.Context(), args[0], shutdownDelete); err != nil {
+		if err := newClient(ctx).DeleteWorkspace(cmd.Context(), args[0], false); err != nil {
 			return err
 		}
 
 		fmt.Printf("workspace %s shutdown\n", args[0])
 		return nil
 	},
-}
-
-func init() {
-	workspaceShutdownCmd.Flags().BoolVar(&shutdownDelete, "delete", false, "permanently delete workspace data")
 }

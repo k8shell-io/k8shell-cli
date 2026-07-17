@@ -13,7 +13,9 @@ var workspaceCmd = &cobra.Command{
 
 func init() {
 	workspaceCmd.AddCommand(workspaceListCmd)
+	workspaceCmd.AddCommand(workspaceGetCmd)
 	workspaceCmd.AddCommand(workspaceCreateCmd)
+	workspaceCmd.AddCommand(workspaceDeleteCmd)
 	workspaceCmd.AddCommand(workspaceJobEventsCmd)
 	workspaceCmd.AddCommand(workspaceShutdownCmd)
 	workspaceCmd.AddCommand(workspaceSSHCmd)
