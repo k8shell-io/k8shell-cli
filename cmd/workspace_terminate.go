@@ -9,11 +9,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var workspaceDeleteCmd = &cobra.Command{
-	Use:               "delete <workspace-name>",
-	Aliases:           []string{"del"},
+var workspaceTerminateCmd = &cobra.Command{
+	Use:               "terminate <workspace-name>",
+	Aliases:           []string{"delete", "del"},
 	Short:             "Permanently delete a workspace and its data",
-	Long:              "Stop a workspace's pod and permanently delete its data. Use 'workspace shutdown' to stop a workspace without deleting its data.",
+	Long:              "Stop a workspace's pod and permanently delete its data. Use 'workspace stop' to stop a workspace without deleting its data.",
 	Args:              cobra.ExactArgs(1),
 	ValidArgsFunction: completeWorkspaceNames,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -26,7 +26,7 @@ var workspaceDeleteCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Printf("workspace %s deleted\n", args[0])
+		fmt.Printf("workspace %s terminated\n", args[0])
 		return nil
 	},
 }
