@@ -21,25 +21,22 @@ import (
 )
 
 var (
-	setFullname      string
-	setShell         string
-	setEmail         string
-	setOrg           string
-	setSudo          string
-	setUID           uint32
-	setGID           uint32
-	setLock          bool
-	setUnlock        bool
-	setPassword      bool
-	setPasswordStdin bool
+	setFullname           string
+	setShell              string
+	setEmail              string
+	setOrg                string
+	setSudo               string
+	setUID                uint32
+	setGID                uint32
+	setLock               bool
+	setUnlock             bool
+	setPassword           bool
+	setPasswordStdin      bool
+	setPreserveWorkspaces bool
 
 	setRoles       []string
 	setAddRoles    []string
 	setRemoveRoles []string
-
-	setBlueprints       []string
-	setAddBlueprints    []string
-	setRemoveBlueprints []string
 
 	setAddKeys        []string
 	setAddKeyFiles    []string
@@ -60,9 +57,6 @@ var userSetCmd = &cobra.Command{
 
 		if cmd.Flags().Changed("roles") && (cmd.Flags().Changed("add-role") || cmd.Flags().Changed("remove-role")) {
 			return fmt.Errorf("--roles cannot be combined with --add-role/--remove-role")
-		}
-		if cmd.Flags().Changed("blueprints") && (cmd.Flags().Changed("add-blueprint") || cmd.Flags().Changed("remove-blueprint")) {
-			return fmt.Errorf("--blueprints cannot be combined with --add-blueprint/--remove-blueprint")
 		}
 		if setLock && setUnlock {
 			return fmt.Errorf("--lock cannot be combined with --unlock")
@@ -114,6 +108,7 @@ var userSetCmd = &cobra.Command{
 		}
 		if cmd.Flags().Changed("org") {
 			req.Org = &setOrg
+			req.PreserveWorkspaces = setPreserveWorkspaces
 			profileFieldsChanged = true
 			updated = append(updated, "org")
 		}
@@ -130,11 +125,6 @@ var userSetCmd = &cobra.Command{
 			req.Sudo = &sudo
 			profileFieldsChanged = true
 			updated = append(updated, "sudo")
-		}
-		if cmd.Flags().Changed("blueprints") {
-			req.Blueprints = setBlueprints
-			profileFieldsChanged = true
-			updated = append(updated, "blueprints")
 		}
 		if setLock {
 			locked := true
@@ -178,18 +168,6 @@ var userSetCmd = &cobra.Command{
 			}
 			updated = append(updated, "add-role")
 		}
-		if len(setRemoveBlueprints) > 0 {
-			if err := c.RemoveUserBlueprints(cmd.Context(), username, setRemoveBlueprints); err != nil {
-				return err
-			}
-			updated = append(updated, "remove-blueprint")
-		}
-		if len(setAddBlueprints) > 0 {
-			if err := c.AddUserBlueprints(cmd.Context(), username, setAddBlueprints); err != nil {
-				return err
-			}
-			updated = append(updated, "add-blueprint")
-		}
 		if len(setRemoveKeyIndex) > 0 {
 			for _, idx := range setRemoveKeyIndex {
 				if err := c.RemoveUserAuthKey(cmd.Context(), username, idx); err != nil {
@@ -230,8 +208,8 @@ var userSetCmd = &cobra.Command{
 
 		if len(updated) == 0 {
 			return fmt.Errorf("specify at least one field to update (--fullname, --shell, --email, --org, --uid, " +
-				"--gid, --roles, --sudo, --blueprints, --lock, --unlock, --password, --password-stdin, " +
-				"--add-role, --remove-role, --add-blueprint, --remove-blueprint, --add-key, --add-key-file, --remove-key)")
+				"--gid, --roles, --sudo, --lock, --unlock, --password, --password-stdin, " +
+				"--add-role, --remove-role, --add-key, --add-key-file, --remove-key)")
 		}
 
 		if printer.IsJSON() {
@@ -250,6 +228,7 @@ func init() {
 	userSetCmd.Flags().Uint32Var(&setUID, "uid", 0, "numeric user ID")
 	userSetCmd.Flags().Uint32Var(&setGID, "gid", 0, "numeric group ID")
 	userSetCmd.Flags().StringVar(&setOrg, "org", "", "organization")
+	userSetCmd.Flags().BoolVar(&setPreserveWorkspaces, "preserve-workspaces", false, "when combined with --org, keep the user's workspaces instead of deleting them on the org move")
 	userSetCmd.Flags().StringVar(&setSudo, "sudo", "", "sudo access (true/false)")
 	userSetCmd.Flags().BoolVar(&setLock, "lock", false, "lock the account")
 	userSetCmd.Flags().BoolVar(&setUnlock, "unlock", false, "unlock the account")
@@ -259,10 +238,6 @@ func init() {
 	userSetCmd.Flags().StringSliceVar(&setRoles, "roles", nil, "replace all roles, comma-separated")
 	repeatableStringVar(userSetCmd.Flags(), &setAddRoles, "add-role", "grant a role, in addition to existing roles (repeatable)")
 	repeatableStringVar(userSetCmd.Flags(), &setRemoveRoles, "remove-role", "revoke a role, leaving others untouched (repeatable)")
-
-	userSetCmd.Flags().StringSliceVar(&setBlueprints, "blueprints", nil, "replace all allowed blueprints, comma-separated")
-	repeatableStringVar(userSetCmd.Flags(), &setAddBlueprints, "add-blueprint", "grant a blueprint, in addition to existing ones (repeatable)")
-	repeatableStringVar(userSetCmd.Flags(), &setRemoveBlueprints, "remove-blueprint", "revoke a blueprint, leaving others untouched (repeatable)")
 
 	repeatableStringVar(userSetCmd.Flags(), &setAddKeys, "add-key", "add an SSH public key, in addition to existing ones (repeatable)")
 	repeatableStringVar(userSetCmd.Flags(), &setAddKeyFiles, "add-key-file", "add an SSH public key read from a file — public or private, PEM or OpenSSH format (repeatable)")

@@ -22,7 +22,6 @@ var (
 	createUserPassword      bool
 	createUserPasswordStdin bool
 	createUserRoles         []string
-	createUserBlueprints    []string
 )
 
 var userCreateCmd = &cobra.Command{
@@ -42,17 +41,16 @@ var userCreateCmd = &cobra.Command{
 
 		username := args[0]
 		req := models.UserCreateRequest{
-			Username:   username,
-			Org:        createUserOrg,
-			Fullname:   createUserFullname,
-			Email:      createUserEmail,
-			Shell:      createUserShell,
-			Sudo:       createUserSudo,
-			Locked:     createUserLocked,
-			UID:        createUserUID,
-			GID:        createUserGID,
-			Roles:      toRoles(createUserRoles),
-			Blueprints: createUserBlueprints,
+			Username: username,
+			Org:      createUserOrg,
+			Fullname: createUserFullname,
+			Email:    createUserEmail,
+			Shell:    createUserShell,
+			Sudo:     createUserSudo,
+			Locked:   createUserLocked,
+			UID:      createUserUID,
+			GID:      createUserGID,
+			Roles:    toRoles(createUserRoles),
 		}
 
 		if createUserPassword || createUserPasswordStdin {
@@ -89,6 +87,5 @@ func init() {
 	userCreateCmd.Flags().BoolVar(&createUserPassword, "password", false, "set the account's local password")
 	userCreateCmd.Flags().BoolVar(&createUserPasswordStdin, "password-stdin", false, "set the account's local password by reading it from stdin")
 	userCreateCmd.Flags().StringSliceVar(&createUserRoles, "roles", nil, "roles to grant, comma-separated")
-	userCreateCmd.Flags().StringSliceVar(&createUserBlueprints, "blueprints", nil, "allowed blueprints, comma-separated")
 	_ = userCreateCmd.MarkFlagRequired("org")
 }

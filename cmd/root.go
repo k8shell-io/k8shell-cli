@@ -88,6 +88,8 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&insecure, "insecure", false, "skip TLS certificate verification")
 
 	rootCmd.AddCommand(userCmd)
+	rootCmd.AddCommand(roleCmd)
+	rootCmd.AddCommand(orgCmd)
 	rootCmd.AddCommand(workspaceCmd)
 	rootCmd.AddCommand(sessionCmd)
 	rootCmd.AddCommand(contextCmd)

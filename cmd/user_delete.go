@@ -9,11 +9,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var userDeletePreserveWorkspaces bool
+
 var userDeleteCmd = &cobra.Command{
 	Use:               "delete <username>",
 	Aliases:           []string{"del"},
 	Short:             "Delete a user",
-	Long:              "Permanently delete a user.",
+	Long:              "Permanently delete a user. Deleting a user also deletes their workspaces, unless --preserve-workspaces is set.",
 	Args:              cobra.ExactArgs(1),
 	ValidArgsFunction: completeUsernames,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -23,7 +25,7 @@ var userDeleteCmd = &cobra.Command{
 		}
 
 		username := args[0]
-		if err := newClient(ctx).DeleteUser(cmd.Context(), username); err != nil {
+		if err := newClient(ctx).DeleteUser(cmd.Context(), username, userDeletePreserveWorkspaces); err != nil {
 			return err
 		}
 
@@ -34,4 +36,8 @@ var userDeleteCmd = &cobra.Command{
 		printer.Println(fmt.Sprintf("%s: deleted", username))
 		return nil
 	},
+}
+
+func init() {
+	userDeleteCmd.Flags().BoolVar(&userDeletePreserveWorkspaces, "preserve-workspaces", false, "keep the user's workspaces instead of deleting them along with the account")
 }

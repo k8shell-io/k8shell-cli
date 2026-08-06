@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/fatih/color v1.19.0
-	github.com/k8shell-io/common v0.34.3
+	github.com/k8shell-io/common v0.37.0
 	github.com/k8shell-io/k8shell-go v0.1.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
